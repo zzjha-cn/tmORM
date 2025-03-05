@@ -99,10 +99,10 @@ func TestUserType(t *testing.T) {
 	})
 	q2.C().SetObj(&TestUser{Name: "s1"}, false)
 	_, _ = up.SetFilter(q1).UpdateOne(sess, q2)
-	_, _ = up.SetFilter(q1).Upsert(sess, q2)
+	_, _ = up.SetFilter(q1).UpdateMany(sess, q2)
 
-	// - update upsert
-	_, _ = up.SetFilter(q1).Upsert(sess, updater.NewBaseSetBuilder(&struct {
+	// - update replace
+	_, _ = up.SetFilter(q1).ReplaceOne(sess, updater.NewBaseSetBuilder(&struct {
 		Name  string `bson:"name"`
 		Age   int    `bson:"age"`
 		Score int    `bson:"-"`
@@ -117,7 +117,7 @@ func TestUserType(t *testing.T) {
 		CommonFilter(func(q query.Query) query.IBsonQuery {
 			return q.Builder().K("age").Lte(13).ToQuery()
 		}).
-		Upsert(sess, q2)
+		UpsertOne(sess, q2)
 
 }
 

@@ -5,6 +5,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"reflect"
 	"strings"
+	"time"
 )
 
 type (
@@ -119,9 +120,16 @@ func makeBsonDByReflect(t any, omitZero bool) (bson.D, error) {
 			}
 
 			if ftyp.Kind() == reflect.Struct {
-				if subRes, err := makeBsonDByReflect(fval.Interface(), omitZero); err == nil && len(subRes) > 0 {
-					res = append(res, bson.E{Key: bsonKey, Value: subRes})
+				if ftyp == reflect.TypeOf(time.Time{}) {
+					// 处理Time.Time类型
+					res = append(res, bson.E{Key: bsonKey, Value: fval.Interface()})
+					continue
+				} else {
+					if subRes, err := makeBsonDByReflect(fval.Interface(), omitZero); err == nil && len(subRes) > 0 {
+						res = append(res, bson.E{Key: bsonKey, Value: subRes})
+					}
 				}
+
 			} else {
 				if fval.IsZero() && omitZero {
 					// 如果是类型零值，则不处理
