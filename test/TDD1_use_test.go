@@ -93,17 +93,31 @@ func TestUserType(t *testing.T) {
 
 	// - update
 	up := &updater.MUpdater[TestUser]{}
-	q2 := updater.NewUpdateBuilder(&TestUser{})
-	q2.OmitZero = true
-	q2.GetIDFunc = func(t *TestUser) any {
-		return t.ID
-	}
-	_, _ = up.Filter(q1).UpdateOne(sess, q2)
-	_, _ = up.Filter(q1).Upsert(sess, updater.NewUpdateBuilder(&struct {
+	q2 := updater.NewReplaceBuilder[TestUser]()
+	q2.SetGetIdFunc(func() (any, bool) {
+		return 1, true
+	})
+	q2.C().SetObj(&TestUser{Name: "s1"}, false)
+	_, _ = up.SetFilter(q1).UpdateOne(sess, q2)
+	_, _ = up.SetFilter(q1).Upsert(sess, q2)
+
+	// - update upsert
+	_, _ = up.SetFilter(q1).Upsert(sess, updater.NewBaseSetBuilder(&struct {
 		Name  string `bson:"name"`
 		Age   int    `bson:"age"`
 		Score int    `bson:"-"`
 	}{}))
+
+	// - update set
+	q2.C().SetObj(&TestUser{}, true)
+	q2.C().SetObj(&TestUser{}, false)
+	q2.C().Set("", "").Unset("", "").Rename("nn", "n2")
+	q2.C().Set("", "").AddToSet("letters", []int{1, 2, 3}).Min("m", 3)
+	up.
+		CommonFilter(func(q query.Query) query.IBsonQuery {
+			return q.Builder().K("age").Lte(13).ToQuery()
+		}).
+		Upsert(sess, q2)
 
 }
 

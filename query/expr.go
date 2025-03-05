@@ -16,7 +16,7 @@ type (
 
 //func (m MExpr) AggCmd() aggCommand {
 //	am := newAggCommand()
-//	//am.m = m.baseCommand
+//	//am.m = m.baseCmdBuilder
 //	am.m.e.SetKey(tmorm.ExprOp)
 //	return am
 //}

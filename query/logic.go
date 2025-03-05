@@ -4,11 +4,11 @@ package query
 
 type (
 	QueryAnd struct {
-		mc mCommand
+		mc mongoCmd
 	}
 
 	QueryOr struct {
-		mc mCommand
+		mc mongoCmd
 	}
 )
 
@@ -16,7 +16,7 @@ func newQueryAnd() *QueryAnd {
 	return &QueryAnd{}
 }
 
-func (q *QueryAnd) K(k string) mCommand {
+func (q *QueryAnd) K(k string) mongoCmd {
 	q.mc.e.SetKey(k)
 	return q.mc
 }
@@ -31,7 +31,7 @@ func newQueryOr() *QueryOr {
 	return &QueryOr{}
 }
 
-func (q *QueryOr) K(k string) mCommand {
+func (q *QueryOr) K(k string) mongoCmd {
 	q.mc.e.SetKey(k)
 	return q.mc
 }

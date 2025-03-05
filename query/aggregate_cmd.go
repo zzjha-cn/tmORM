@@ -10,7 +10,7 @@ type (
 	// 聚合表达式中
 	// 与key组合的复杂命令，如 "{"$gte":["$age",10]}"。 (区别于 {"age":{"$gte":10}} )
 	aggCommand struct {
-		m baseCommand
+		m baseCmdBuilder
 	}
 
 	// 命令的 key 的抽象

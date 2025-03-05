@@ -35,7 +35,7 @@ func appendBsonD(D bson.D, key string, val any) bson.D {
 	return D
 }
 
-func (q Builder) K(field string) mCommand {
+func (q Builder) K(field string) mongoCmd {
 	mc := newMCommand()
 	mc.e.SetKey(field)
 	mc.b = &q
@@ -88,4 +88,8 @@ func (q Builder) ToQuery() Query {
 	return Query{
 		bd: q,
 	}
+}
+
+func (q Builder) GetData() bson.D {
+	return q.data
 }

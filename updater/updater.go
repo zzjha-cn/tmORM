@@ -22,7 +22,7 @@ type (
 	}
 
 	IUpsertBuilder interface {
-		GetId() any
+		GetId() (any, bool)
 		IUpdateBuilder
 	}
 )
@@ -33,8 +33,15 @@ type (
 	}
 )
 
-func (p *MUpdater[T]) Filter(b query.IBsonQuery) *MUpdater[T] {
+func (p *MUpdater[T]) SetFilter(b query.IBsonQuery) *MUpdater[T] {
 	p.filter = b
+	return p
+}
+
+func (p *MUpdater[T]) CommonFilter(f func(q query.Query) query.IBsonQuery) *MUpdater[T] {
+	if f != nil {
+		p.filter = f(query.Query{})
+	}
 	return p
 }
 
@@ -75,7 +82,8 @@ func (p *MUpdater[T]) Upsert(sess tmorm.MSession, bd IUpsertBuilder, opts ...*op
 		return nil, errors.New("need upsert")
 	}
 
-	fil = append(fil, bson.E{"_id", bd.GetId()})
-
+	if id, ok := bd.GetId(); ok {
+		fil = append(fil, bson.E{"_id", id})
+	}
 	return sess.Conn().ReplaceOne(sess.Ctx, fil, bd.GetBsonD(), opts...)
 }

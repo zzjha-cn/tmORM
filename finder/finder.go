@@ -27,8 +27,11 @@ var (
 func (f *Finder[T]) Find(sess tmorm.MSession, q query.IBsonQuery, opts ...*options.FindOptions) ([]*T, error) {
 	var (
 		res    []*T
-		filter bson.D = q.GetBsonD()
+		filter bson.D
 	)
+	if q != nil {
+		filter = q.GetBsonD()
+	}
 	cursor, err := sess.Conn().Find(sess.Ctx, filter, opts...)
 	if err != nil {
 		return nil, err
@@ -45,8 +48,11 @@ func (f *Finder[T]) Find(sess tmorm.MSession, q query.IBsonQuery, opts ...*optio
 func (f *Finder[T]) FindOne(sess tmorm.MSession, q query.IBsonQuery, opts ...*options.FindOneOptions) (*T, error) {
 	var (
 		res    *T
-		filter bson.D = q.GetBsonD()
+		filter bson.D
 	)
+	if q != nil {
+		filter = q.GetBsonD()
+	}
 
 	err := sess.Conn().FindOne(sess.Ctx, filter, opts...).Decode(&res)
 	if err != nil {
@@ -57,14 +63,20 @@ func (f *Finder[T]) FindOne(sess tmorm.MSession, q query.IBsonQuery, opts ...*op
 
 func (f *Finder[T]) Count(sess tmorm.MSession, q query.IBsonQuery, opts ...*options.CountOptions) (int64, error) {
 	var (
-		filter bson.D = q.GetBsonD()
+		filter bson.D
 	)
+	if q != nil {
+		filter = q.GetBsonD()
+	}
 	return sess.Conn().CountDocuments(sess.Ctx, filter, opts...)
 }
 
 func (f *Finder[T]) Distinct(sess tmorm.MSession, q query.IBsonQuery, fieldName string, opts ...*options.DistinctOptions) ([]any, error) {
 	var (
-		filter bson.D = q.GetBsonD()
+		filter bson.D
 	)
+	if q != nil {
+		filter = q.GetBsonD()
+	}
 	return sess.Conn().Distinct(sess.Ctx, fieldName, filter, opts...)
 }

@@ -10,15 +10,15 @@ type (
 		E bson.E
 	}
 
-	mCommand struct {
-		baseCommand
+	mongoCmd struct {
+		baseCmdBuilder
 		//D bson.D
 		// 其实bsonE就够了，但是防止后续有需要，还是定成bsonD
 
 		// ！需要将数据中的bsonE转化为bsonD输出，因为mongo-drive中核心支持最小单位为bsonD，所以应该再套一层, 从E转D
 	}
 
-	baseCommand struct {
+	baseCmdBuilder struct {
 		e EBonsE
 		b *Builder
 
@@ -26,23 +26,23 @@ type (
 	}
 )
 
-func newMCommand() mCommand {
-	return mCommand{}
+func newMCommand() mongoCmd {
+	return mongoCmd{}
 }
 
-func newBaseCommand() baseCommand {
-	return baseCommand{}
+func newBaseCommand() baseCmdBuilder {
+	return baseCmdBuilder{}
 }
 
-func (b baseCommand) getE() bson.E {
+func (b baseCmdBuilder) getE() bson.E {
 	return b.e.E
 }
 
-func (b baseCommand) getD() bson.D {
+func (b baseCmdBuilder) getD() bson.D {
 	return bson.D{b.e.E}
 }
 
-func (qh mCommand) In(vals ...any) Builder {
+func (qh mongoCmd) In(vals ...any) Builder {
 	e := EBonsE{}
 	e.SetKey(tmorm.InOp)
 	e.SetV(vals)
@@ -51,7 +51,7 @@ func (qh mCommand) In(vals ...any) Builder {
 	return *qh.b
 }
 
-func (qh mCommand) NIn(vals ...any) Builder {
+func (qh mongoCmd) NIn(vals ...any) Builder {
 	e := EBonsE{}
 	e.SetKey(tmorm.NinOp)
 	e.SetV(vals)
@@ -60,7 +60,7 @@ func (qh mCommand) NIn(vals ...any) Builder {
 	return *qh.b
 }
 
-func (qh mCommand) sv(key string, val any) Builder {
+func (qh mongoCmd) sv(key string, val any) Builder {
 	e := EBonsE{}
 	e.SetKey(key)
 	e.SetV(val)
@@ -69,35 +69,35 @@ func (qh mCommand) sv(key string, val any) Builder {
 	return *qh.b
 }
 
-func (qh mCommand) Gte(val any) Builder {
+func (qh mongoCmd) Gte(val any) Builder {
 	return qh.sv(tmorm.GteOp, val)
 }
 
-func (qh mCommand) Gt(val any) Builder {
+func (qh mongoCmd) Gt(val any) Builder {
 	return qh.sv(tmorm.GtOp, val)
 }
 
-func (qh mCommand) Lte(val any) Builder {
+func (qh mongoCmd) Lte(val any) Builder {
 	return qh.sv(tmorm.LteOp, val)
 }
 
-func (qh mCommand) Lt(val any) Builder {
+func (qh mongoCmd) Lt(val any) Builder {
 	return qh.sv(tmorm.LtOp, val)
 }
 
-func (qh mCommand) Eq(val any) Builder {
+func (qh mongoCmd) Eq(val any) Builder {
 	return qh.sv(tmorm.EqOp, val)
 }
 
-func (qh mCommand) Ne(val any) Builder {
+func (qh mongoCmd) Ne(val any) Builder {
 	return qh.sv(tmorm.NeOp, val)
 }
 
-func (qh mCommand) Exists(val any) Builder {
+func (qh mongoCmd) Exists(val any) Builder {
 	return qh.sv(tmorm.ExistsOp, val)
 }
 
-func (qh mCommand) Regex(val string) Builder {
+func (qh mongoCmd) Regex(val string) Builder {
 	return qh.sv(tmorm.RegexOp, val)
 }
 
