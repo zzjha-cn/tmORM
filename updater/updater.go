@@ -12,9 +12,10 @@ import (
 type (
 	//go:generate mockgen -source=updater.go -destination=../mock/updater.mock.go -package=mocks
 	IUpdater[T any] interface {
-		UpdateOne(sess tmorm.MSession, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error)
-		UpdateMany(sess tmorm.MSession, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error)
-		Upsert(sess tmorm.MSession, opts ...*options.ReplaceOptions) (*mongo.UpdateResult, error)
+		UpdateOne(sess tmorm.MSession, upbd IUpdateBuilder, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error)
+		UpdateMany(sess tmorm.MSession, upbd IUpdateBuilder, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error)
+		ReplaceOne(sess tmorm.MSession, bd IUpsertBuilder, opts ...*options.ReplaceOptions) (*mongo.UpdateResult, error)
+		UpsertOne(sess tmorm.MSession, bd IUpsertBuilder, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error)
 	}
 
 	IUpdateBuilder interface {
