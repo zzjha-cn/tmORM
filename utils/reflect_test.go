@@ -1,4 +1,4 @@
-package updater
+package utils
 
 import (
 	"reflect"
@@ -180,13 +180,13 @@ func TestMakeBsonDByReflect(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := makeBsonDByReflect(tt.input, tt.omitZero)
+			got, err := MakeBsonDByReflect(tt.input, tt.omitZero)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("makeBsonDByReflect() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("MakeBsonDByReflect() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("makeBsonDByReflect() = %v, want %v", got, tt.want)
+				t.Errorf("MakeBsonDByReflect() = %v, want %v", got, tt.want)
 			}
 		})
 	}

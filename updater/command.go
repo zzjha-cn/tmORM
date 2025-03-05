@@ -1,9 +1,11 @@
 package updater
 
 import (
-	"go.mongodb.org/mongo-driver/bson"
 	tmorm "tm_orm"
 	"tm_orm/query"
+	"tm_orm/utils"
+
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 type (
@@ -42,7 +44,7 @@ func (c *UpdateCmd[T]) SetObj(t *T, omitZero ...bool) *UpdateCmd[T] {
 	if len(omitZero) > 0 {
 		o = omitZero[0]
 	}
-	d, _ := makeBsonDByReflect(t, o)
+	d, _ := utils.MakeBsonDByReflect(t, o)
 	c.bd = c.bd.KV(tmorm.SetOp, d)
 	return c
 }
