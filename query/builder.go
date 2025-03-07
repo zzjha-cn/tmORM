@@ -7,15 +7,6 @@ import (
 )
 
 type (
-	IBsonQuery interface {
-		GetBsonD() bson.D
-	}
-
-	IBsonBuilder interface {
-	}
-)
-
-type (
 	Builder struct {
 		data bson.D
 	}
