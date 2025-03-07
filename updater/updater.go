@@ -1,7 +1,6 @@
 package updater
 
 import (
-	"errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -18,6 +17,15 @@ type (
 		ReplaceOne(sess tmorm.MSession, bd impl.IUpsertBuilder, opts ...*options.ReplaceOptions) (*mongo.UpdateResult, error)
 		UpsertOne(sess tmorm.MSession, bd impl.IUpsertBuilder, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error)
 	}
+)
+
+var (
+	_ IUpdater[any] = (*MUpdater[any])(nil)
+
+	UpdateOneMtd  tmorm.MethodTyp = "UpdateOne"
+	UpdateManyMtd tmorm.MethodTyp = "UpdateMany"
+	ReplaceOneMtd tmorm.MethodTyp = "ReplaceOne"
+	UpsertOneMtd  tmorm.MethodTyp = "UpsertOne"
 )
 
 type (
@@ -38,31 +46,102 @@ func (p *MUpdater[T]) CommonFilter(f func(q query.Query) impl.IBsonQuery) *MUpda
 	return p
 }
 
-// 操作update命令
-func (p *MUpdater[T]) C() *MUpdater[T] {
-	return p
-}
-
 func (p *MUpdater[T]) UpdateOne(sess tmorm.MSession, upbd impl.IUpdateBuilder, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error) {
-	var (
-		fil bson.D
-	)
-	if p.filter != nil {
-		fil = p.filter.GetBsonD()
+	var r tmorm.MHandlerFunc = func(mctx *tmorm.MiddleCtx) tmorm.MResult {
+		var (
+			fil bson.D
+			upd bson.D
+		)
+		if mctx.Query != nil {
+			fil = mctx.Query.GetBsonD()
+		}
+		if mctx.Update != nil {
+			upd = mctx.Update.GetBsonD()
+		}
+		res, err := mctx.Session.Conn().UpdateOne(mctx.Session.Ctx, fil, upd, opts...)
+		if err != nil {
+			return tmorm.MResult{
+				Val: nil,
+				Err: err,
+			}
+		}
+
+		return tmorm.MResult{
+			Val: res,
+			Err: err,
+		}
 	}
-	return sess.Conn().UpdateOne(sess.Ctx, fil, upbd.GetBsonD(), opts...)
+
+	ctx := tmorm.NewMiddleCtx(&sess, UpdateOneMtd)
+	ctx.Query = p.filter
+	ctx.Update = upbd
+
+	res := sess.BuildExecuteChain(r)(ctx)
+	if res.Val != nil {
+		return res.Val.(*mongo.UpdateResult), res.Err
+	}
+	return nil, res.Err
 }
 
 func (p *MUpdater[T]) UpdateMany(sess tmorm.MSession, upbd impl.IUpdateBuilder, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error) {
-	var (
-		fil bson.D
-	)
-	if p.filter != nil {
-		fil = p.filter.GetBsonD()
+	var r tmorm.MHandlerFunc = func(mctx *tmorm.MiddleCtx) tmorm.MResult {
+		var (
+			fil bson.D
+			upd bson.D
+		)
+		if mctx.Query != nil {
+			fil = mctx.Query.GetBsonD()
+		}
+		if mctx.Update != nil {
+			upd = mctx.Update.GetBsonD()
+		}
+		res, err := mctx.Session.Conn().UpdateMany(mctx.Session.Ctx, fil, upd, opts...)
+		if err != nil {
+			return tmorm.MResult{
+				Val: nil,
+				Err: err,
+			}
+		}
+
+		return tmorm.MResult{
+			Val: res,
+			Err: err,
+		}
 	}
-	return sess.Conn().UpdateMany(sess.Ctx, fil, upbd.GetBsonD(), opts...)
+
+	ctx := tmorm.NewMiddleCtx(&sess, UpdateManyMtd)
+	ctx.Query = p.filter
+	ctx.Update = upbd
+
+	res := sess.BuildExecuteChain(r)(ctx)
+	if res.Val != nil {
+		return res.Val.(*mongo.UpdateResult), res.Err
+	}
+	return nil, res.Err
+
+	//var (
+	//	fil bson.D
+	//)
+	//if p.filter != nil {
+	//	fil = p.filter.GetBsonD()
+	//}
+	//return sess.Conn().UpdateMany(sess.Ctx, fil, upbd.GetBsonD(), opts...)
 }
 
+/*
+ReplaceOne
+replaceOne：
+
+	替换整个文档。
+	传入的是一个完整的文档。
+	不能使用更新操作符。
+
+updateOne：
+
+	部分更新文档。
+	传入的是一个包含更新操作符的文档。
+	可以使用$set、$inc、$push等操作符。
+*/
 func (p *MUpdater[T]) ReplaceOne(sess tmorm.MSession, bd impl.IUpsertBuilder, opts ...*options.ReplaceOptions) (*mongo.UpdateResult, error) {
 	if len(opts) == 0 {
 		opts = append(opts, options.Replace().SetUpsert(true))
@@ -70,32 +149,53 @@ func (p *MUpdater[T]) ReplaceOne(sess tmorm.MSession, bd impl.IUpsertBuilder, op
 		opts[0].SetUpsert(true)
 	}
 
-	var (
-		fil bson.D
-	)
-	if p.filter != nil {
-		fil = p.filter.GetBsonD()
-	}
+	var r tmorm.MHandlerFunc = func(mctx *tmorm.MiddleCtx) tmorm.MResult {
+		var (
+			fil         bson.D
+			updateBsonD bson.D
+		)
+		if mctx.Query != nil {
+			fil = mctx.Query.GetBsonD()
+		}
+		if mctx.Upsert != nil {
+			updateBsonD = mctx.Upsert.GetBsonD()
+		}
 
-	if bd == nil {
-		return nil, errors.New("need upsert")
-	}
+		if id, ok := mctx.Upsert.GetId(); ok {
+			fil = append(fil, bson.E{"_id", id})
+		}
 
-	if id, ok := bd.GetId(); ok {
-		fil = append(fil, bson.E{"_id", id})
-	}
+		// 使用replaceOne，不能包含更新操作符。
+		var replaceVal any
+		for _, d := range updateBsonD {
+			if d.Key == tmorm.SetOp {
+				replaceVal = d.Value
+				break
+			}
+		}
+		res, err := mctx.Session.Conn().ReplaceOne(mctx.Session.Ctx, fil, replaceVal, opts...)
+		if err != nil {
+			return tmorm.MResult{
+				Val: nil,
+				Err: err,
+			}
+		}
 
-	// 使用replaceOne，不能包含更新操作符。
-	updateBsonD := bd.GetBsonD()
-	var replaceVal any
-	for _, d := range updateBsonD {
-		if d.Key == tmorm.SetOp {
-			replaceVal = d.Value
-			break
+		return tmorm.MResult{
+			Val: res,
+			Err: err,
 		}
 	}
 
-	return sess.Conn().ReplaceOne(sess.Ctx, fil, replaceVal, opts...)
+	ctx := tmorm.NewMiddleCtx(&sess, ReplaceOneMtd)
+	ctx.Query = p.filter
+	ctx.Upsert = bd
+
+	res := sess.BuildExecuteChain(r)(ctx)
+	if res.Val != nil {
+		return res.Val.(*mongo.UpdateResult), res.Err
+	}
+	return nil, res.Err
 }
 
 func (p *MUpdater[T]) UpsertOne(sess tmorm.MSession, bd impl.IUpsertBuilder, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error) {
@@ -105,22 +205,43 @@ func (p *MUpdater[T]) UpsertOne(sess tmorm.MSession, bd impl.IUpsertBuilder, opt
 		opts[0].SetUpsert(true)
 	}
 
-	var (
-		fil bson.D
-	)
-	if p.filter != nil {
-		fil = p.filter.GetBsonD()
+	var r tmorm.MHandlerFunc = func(mctx *tmorm.MiddleCtx) tmorm.MResult {
+		var (
+			fil         bson.D
+			updateBsonD bson.D
+		)
+		if mctx.Query != nil {
+			fil = mctx.Query.GetBsonD()
+		}
+		if mctx.Upsert != nil {
+			updateBsonD = mctx.Upsert.GetBsonD()
+		}
+
+		if id, ok := mctx.Upsert.GetId(); ok {
+			fil = append(fil, bson.E{"_id", id})
+		}
+
+		res, err := mctx.Session.Conn().UpdateOne(mctx.Session.Ctx, fil, updateBsonD, opts...)
+		if err != nil {
+			return tmorm.MResult{
+				Val: nil,
+				Err: err,
+			}
+		}
+
+		return tmorm.MResult{
+			Val: res,
+			Err: err,
+		}
 	}
 
-	if bd == nil {
-		return nil, errors.New("need upsert")
+	ctx := tmorm.NewMiddleCtx(&sess, UpsertOneMtd)
+	ctx.Query = p.filter
+	ctx.Upsert = bd
+
+	res := sess.BuildExecuteChain(r)(ctx)
+	if res.Val != nil {
+		return res.Val.(*mongo.UpdateResult), res.Err
 	}
-
-	if id, ok := bd.GetId(); ok {
-		fil = append(fil, bson.E{"_id", id})
-	}
-
-	updateBsonD := bd.GetBsonD()
-
-	return sess.Conn().UpdateOne(sess.Ctx, fil, updateBsonD, opts...)
+	return nil, res.Err
 }

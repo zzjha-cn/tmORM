@@ -36,8 +36,8 @@ func (f *Finder[T]) Find(sess tmorm.MSession, q impl.IBsonQuery, opts ...*option
 			res    []*T
 			filter bson.D
 		)
-		if q != nil {
-			filter = q.GetBsonD()
+		if mctx.Query != nil {
+			filter = mctx.Query.GetBsonD()
 		}
 
 		cursor, err := mctx.Session.Conn().Find(mctx.Session.Ctx, filter, opts...)
@@ -81,8 +81,8 @@ func (f *Finder[T]) FindOne(sess tmorm.MSession, q impl.IBsonQuery, opts ...*opt
 			res    []*T
 			filter bson.D
 		)
-		if q != nil {
-			filter = q.GetBsonD()
+		if mctx.Query != nil {
+			filter = mctx.Query.GetBsonD()
 		}
 
 		err := mctx.Session.Conn().FindOne(mctx.Session.Ctx, filter, opts...).Decode(&res)
@@ -115,8 +115,8 @@ func (f *Finder[T]) Count(sess tmorm.MSession, q impl.IBsonQuery, opts ...*optio
 		var (
 			filter bson.D
 		)
-		if q != nil {
-			filter = q.GetBsonD()
+		if mctx.Query != nil {
+			filter = mctx.Query.GetBsonD()
 		}
 
 		count, err := mctx.Session.Conn().CountDocuments(mctx.Session.Ctx, filter, opts...)
@@ -149,8 +149,8 @@ func (f *Finder[T]) Distinct(sess tmorm.MSession, q impl.IBsonQuery, fieldName s
 		var (
 			filter bson.D
 		)
-		if q != nil {
-			filter = q.GetBsonD()
+		if mctx.Query != nil {
+			filter = mctx.Query.GetBsonD()
 		}
 
 		dval, err := mctx.Session.Conn().Distinct(mctx.Session.Ctx, fieldName, filter, opts...)
