@@ -133,8 +133,8 @@ func TestFinderE2E(t *testing.T) {
 				MongoClient.Database("mytest").Collection("db_test").UpdateOne(context.Background(),
 					bson.M{"_id": data.ID}, bson.M{"$set": data}, options.Update().SetUpsert(true))
 				MongoClient.Database("mytest").Collection("db_test").UpdateOne(context.Background(),
-					bson.M{"_id": data.ID}, bson.M{"$set": &TestUser{
-						ID:   primitive.ObjectID([12]byte{1, 2, 3, 4, 5, 6}),
+					bson.M{"_id": primitive.ObjectID([12]byte{1, 2, 3, 4, 5, 9, 8, 6})}, bson.M{"$set": &TestUser{
+						ID:   primitive.ObjectID([12]byte{1, 2, 3, 4, 5, 9, 8, 6}),
 						Name: "sean1",
 						Age:  50,
 					}}, options.Update().SetUpsert(true))
@@ -144,7 +144,7 @@ func TestFinderE2E(t *testing.T) {
 				MongoClient.Database("mytest").Collection("db_test").DeleteMany(context.Background(),
 					bson.M{"_id": data.ID})
 				MongoClient.Database("mytest").Collection("db_test").DeleteMany(context.Background(),
-					bson.M{"_id": primitive.ObjectID([12]byte{1, 2, 3, 4, 5, 6})})
+					bson.M{"_id": primitive.ObjectID([12]byte{1, 2, 3, 4, 5, 9, 8, 6})})
 			},
 			check: func(tc *tcase) {
 				var (
@@ -178,7 +178,7 @@ func TestFinderE2E(t *testing.T) {
 			},
 		},
 		{
-			name:   "expr",
+			name:   "count",
 			finder: fd,
 			data: &TestUser{
 				ID:   primitive.ObjectID([12]byte{1, 2, 3, 4, 5}),
@@ -189,19 +189,22 @@ func TestFinderE2E(t *testing.T) {
 				data := tc.data.(*TestUser)
 				MongoClient.Database("mytest").Collection("db_test").UpdateOne(context.Background(),
 					bson.M{"_id": data.ID}, bson.M{"$set": data}, options.Update().SetUpsert(true))
-				MongoClient.Database("mytest").Collection("db_test").UpdateOne(context.Background(),
-					bson.M{"_id": data.ID}, bson.M{"$set": &TestUser{
-						ID:   primitive.ObjectID([12]byte{1, 2, 3, 4, 5, 6}),
+				_, err := MongoClient.Database("mytest").Collection("db_test").UpdateOne(context.Background(),
+					bson.M{"_id": primitive.ObjectID([12]byte{1, 2, 3, 4, 5, 8, 6})}, bson.M{"$set": &TestUser{
+						ID:   primitive.ObjectID([12]byte{1, 2, 3, 4, 5, 8, 6}),
 						Name: "sean1",
 						Age:  50,
 					}}, options.Update().SetUpsert(true))
+				if err != nil {
+					panic(err)
+				}
 			},
 			after: func(tc *tcase) {
 				data := tc.data.(*TestUser)
 				MongoClient.Database("mytest").Collection("db_test").DeleteMany(context.Background(),
 					bson.M{"_id": data.ID})
 				MongoClient.Database("mytest").Collection("db_test").DeleteMany(context.Background(),
-					bson.M{"_id": primitive.ObjectID([12]byte{1, 2, 3, 4, 5, 6})})
+					bson.M{"_id": primitive.ObjectID([12]byte{1, 2, 3, 4, 5, 8, 6})})
 			},
 			check: func(tc *tcase) {
 				var (
@@ -231,9 +234,9 @@ func TestFinderE2E(t *testing.T) {
 				tc.before(&tc)
 			}
 			tc.check(&tc)
-			//if tc.after != nil {
-			//	tc.after(&tc)
-			//}
+			if tc.after != nil {
+				tc.after(&tc)
+			}
 		})
 	}
 

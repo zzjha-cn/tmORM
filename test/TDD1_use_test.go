@@ -7,6 +7,8 @@ import (
 	"time"
 	tmorm "tm_orm"
 	"tm_orm/finder"
+	"tm_orm/impl"
+	"tm_orm/middleware"
 	"tm_orm/query"
 	"tm_orm/updater"
 
@@ -115,12 +117,40 @@ func TestUserType(t *testing.T) {
 	q2.C().Set("", "").Unset("", "").Rename("nn", "n2")
 	q2.C().Set("", "").AddToSet("letters", []int{1, 2, 3}).Min("m", 3)
 	up.
-		CommonFilter(func(q query.Query) query.IBsonQuery {
+		CommonFilter(func(q query.Query) impl.IBsonQuery {
 			return q.Builder().K("age").Lte(13).ToQuery()
 		}).
 		UpsertOne(sess, q2)
 
 	// - middleware
+	md := tmorm.NewMiddleChainAdapt()
+	md.Use( // DB层面的中间件
+		func(next tmorm.MHandlerFunc) tmorm.MHandlerFunc {
+			return func(mctx *tmorm.MiddleCtx) tmorm.MResult {
+				println("前置")
+				return next(mctx)
+			}
+		},
+		func(next tmorm.MHandlerFunc) tmorm.MHandlerFunc {
+			return func(mctx *tmorm.MiddleCtx) tmorm.MResult {
+				r := next(mctx)
+				println("后置")
+				return r
+			}
+		},
+		middleware.SLowQueryMiddleware{
+			Threshold: 500, // ms
+		}.Build(),
+	)
+	ctx1 := context.Background()
+	db := getDB().SetMiddleware(md)
+	sess1 := db.Sess(ctx1, dbName, coll, func(next tmorm.MHandlerFunc) tmorm.MHandlerFunc {
+		return func(mctx *tmorm.MiddleCtx) tmorm.MResult {
+			println("sess 前置，会话层面的中间件")
+			return next(mctx)
+		}
+	})
+	(&finder.Finder[TestUser]{}).Find(sess1, q1)
 
 }
 

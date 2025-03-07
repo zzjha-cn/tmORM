@@ -8,35 +8,33 @@ import (
 
 type (
 	MDB struct {
-		cli *mongo.Client
-	}
-
-	MSession struct {
-		Ctx        context.Context
-		mdb        *MDB
-		DBName     string
-		collection string
+		cli        *mongo.Client
+		middleware *MiddleChain
 	}
 )
 
 func NewMDB(cli *mongo.Client) *MDB {
-	return &MDB{cli: cli}
+	return &MDB{
+		cli:        cli,
+		middleware: NewMiddleChainAdapt(),
+	}
 }
 
-func (m *MDB) Sess(ctx context.Context, db, collection string) MSession {
+func (m *MDB) Sess(ctx context.Context, db, collection string, msList ...MHandlerBuilder) MSession {
 	return MSession{
 		Ctx:        ctx,
 		mdb:        m,
 		DBName:     db,
-		collection: collection,
+		Collection: collection,
+		ms:         msList,
 	}
 }
 
-// ======================================================
-
-func (s MSession) Conn() *mongo.Collection {
-	return s.mdb.cli.Database(s.DBName).Collection(s.collection)
+func (m *MDB) SetMiddleware(mc *MiddleChain) *MDB {
+	m.middleware = mc
+	return m
 }
 
-func (s MSession) Before() {
+func (m *MDB) GetMiddleware() *MiddleChain {
+	return m.middleware
 }
