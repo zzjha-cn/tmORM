@@ -44,6 +44,7 @@ type (
 		Session *MSession
 		Query   impl.IBsonQuery
 		Update  impl.IUpdateBuilder
+		Upsert  impl.IUpsertBuilder
 	}
 
 	MResult struct {
