@@ -28,8 +28,8 @@ func TestQueryBase(t *testing.T) {
 			check: func(bd *query.Query) error {
 				//want := bson.Data{{Key: "key1", Value: bson.E{Key: "$in", Value: []int{1, 2, 3, 4, 5}}}} // 没有泛型方法,所以没有[]int{}
 				want := bson.D{
-					{Key: "key1", Value: bson.D{{Key: "$in", Value: []any{1, 2, 3, 4, 5}}}},
-					{Key: "age", Value: bson.D{{Key: "$nin", Value: []any{19, 20}}}},
+					{Key: "key1", Value: bson.D{{Key: "$in", Value: bson.A{1, 2, 3, 4, 5}}}},
+					{Key: "age", Value: bson.D{{Key: "$nin", Value: bson.A{19, 20}}}},
 				}
 				d := bd.GetBsonD()
 				assert.Equal(t, want, d)

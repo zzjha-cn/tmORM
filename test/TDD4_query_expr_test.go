@@ -25,7 +25,7 @@ func TestQueryExpr(t *testing.T) {
 
 				a := bd.Builder().
 					Expr(func(m query.MExpr) query.Builder {
-						return m.Gte(query.F("age"), 33)
+						return m.Gte(query.F("age"), m.Val(33))
 					})
 
 				*bd = a.ToQuery()
@@ -50,8 +50,8 @@ func TestQueryExpr(t *testing.T) {
 				a := bd.Builder().
 					Expr(func(m query.MExpr) query.Builder {
 						return m.Gte(
-							m.C().Multi(m.Fd("score"), 100),
-							500,
+							m.C().Multi(m.Fd("score"), m.Val(100)),
+							m.Val(500),
 						)
 					})
 				*bd = a.ToQuery()
@@ -82,17 +82,17 @@ func TestQueryExpr(t *testing.T) {
 				a := bd.Builder().
 					Expr(func(m query.MExpr) query.Builder {
 						return m.And(
-							m.C().Gte(m.Fd("age"), 22),
+							m.C().Gte(m.Fd("age"), m.Val(22)),
 							m.C().Gte(
 								m.Fd("salary"),
 								m.C().Multi(
 									m.C().Avg(m.Fd("salary")),
-									2,
+									m.Val(2),
 								),
 							),
 							m.Er().Or(
-								m.C().Eq(m.Fd("name"), "sean"),
-								m.C().Gt(m.Fd("age"), 18),
+								m.C().Eq(m.Fd("name"), m.Val("sean")),
+								m.C().Gt(m.Fd("age"), m.Val(18)),
 							),
 						)
 					})

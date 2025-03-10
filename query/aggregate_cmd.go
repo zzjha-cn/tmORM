@@ -8,26 +8,25 @@ import (
 
 type (
 	// 聚合表达式中
-	// 与key组合的复杂命令，如 "{"$gte":["$age",10]}"。 (区别于 {"age":{"$gte":10}} )
+	// 与key组合的复杂命令，如 "{"$gte":["$age",10]}"。 (区别于查询表达式 {"age":{"$gte":10}} )
 	aggCommand struct {
 		m baseCmdBuilder
 	}
 
 	// 命令的 key 的抽象
-	IAggCommandKey interface {
-		CmdKey()
+	IAggCommandField interface {
+		cmdFd()
+		GetValue() any
 	}
-	// 字段名称 or 字符串类型的"$$xxx"
+	// 字段名称
 	Field string
-
-	// 命令 val 的抽象
-	IAggCommandValue interface {
-		CmdVal()
+	// 为任意值实现IAggCommandField接口
+	AggVal[T any] struct {
+		val T
 	}
 )
 
-func (ch aggCommand) CmdVal() {}
-func (ch aggCommand) CmdKey() {}
+func (ch aggCommand) cmdFd() {}
 
 func newAggCommand() aggCommand {
 	b := newBaseCommand()
@@ -37,63 +36,44 @@ func newAggCommand() aggCommand {
 
 // ==============================================
 
-func (f Field) CmdKey() {}
+func (f Field) cmdFd()        {}
+func (f Field) GetValue() any { return string(f) }
 func F(s string) Field {
 	return Field("$" + s)
 }
+func (v AggVal[T]) cmdFd()        {}
+func (v AggVal[T]) GetValue() any { return v.val }
+
+func V[T any](t T) AggVal[T] {
+	return AggVal[T]{
+		val: t,
+	}
+}
 
 // ==============================================
-
-func (ch aggCommand) combineBsonKv(op string, k IAggCommandKey, v any) Builder {
-	valArr := make(bson.A, 2)
-	switch k1 := k.(type) {
-	case Field:
-		valArr[0] = string(k1)
-	case aggCommand:
-		valArr[0] = k1.m.getD()
-	case Builder:
-		valArr[0] = k1.data
-	default:
-		//valArr[0] = k1 // 去掉，强调key的类型绑定，不允许别的类型进入。
-	}
-
-	switch v1 := v.(type) {
-	case aggCommand:
-		valArr[1] = v1.m.getD()
-	case Builder:
-		valArr[1] = v1.data
-	default:
-		valArr[1] = v
-	}
-
-	ch.m.b.data = appendBsonD(ch.m.b.data, op, valArr)
-	//ch.m.e.SetEAsBsonD(bson.E{
-	//	Key:   op,
-	//	Value: valArr,
-	//})
+func (ch aggCommand) combineSingleVal(op string, k IAggCommandField) Builder {
+	ch.m.b.data = appendBsonD(ch.m.b.data, op, k.GetValue())
 	return *ch.m.b
 }
 
-func (ch aggCommand) combineBsonArray(op string, k IAggCommandKey, v ...any) Builder {
-	e1 := bson.E{}
-	e1.Key = op
-	valArr := make(bson.A, 1)
-	switch k1 := k.(type) {
-	case Field:
-		valArr[0] = string(k1)
-	case aggCommand:
-		valArr[0] = k1.m.getD()
-	case Builder:
-		valArr[0] = k1.data
-	default:
-		//valArr[0] = k1
+func (ch aggCommand) combineBsonKv(op string, k IAggCommandField, v IAggCommandField) Builder {
+	valArr := make(bson.A, 2)
+	valArr[0] = k.GetValue()
+	valArr[1] = v.GetValue()
+
+	ch.m.b.data = appendBsonD(ch.m.b.data, op, valArr)
+	return *ch.m.b
+}
+
+func (ch aggCommand) combineBsonArray(op string, k ...IAggCommandField) Builder {
+	val := make(bson.A, 0, len(k))
+	for _, v := range k {
+		val = append(val, v.GetValue())
 	}
 
-	//valArr[1] = any2BsonA(v) // 注意三个点
-	if len(v) > 0 {
-		valArr = append(valArr, any2BsonA(v...))
+	if len(val) > 0 {
+		ch.m.b.data = appendBsonD(ch.m.b.data, op, val)
 	}
-	ch.m.b.data = appendBsonD(ch.m.b.data, op, valArr)
 
 	return *ch.m.b
 }
@@ -108,83 +88,156 @@ func any2BsonA(list ...any) bson.A {
 
 // -------------------比较命令------------------
 
-func (ch aggCommand) Gte(k IAggCommandKey, v any) Builder {
+func (ch aggCommand) Gte(k IAggCommandField, v IAggCommandField) Builder {
 	return ch.combineBsonKv(tmorm.GteOp, k, v)
 }
-func (ch aggCommand) Gt(k IAggCommandKey, v any) Builder {
+func (ch aggCommand) Gt(k IAggCommandField, v IAggCommandField) Builder {
 	return ch.combineBsonKv(tmorm.GtOp, k, v)
 }
-func (ch aggCommand) Lte(k IAggCommandKey, v any) Builder {
+func (ch aggCommand) Lte(k IAggCommandField, v IAggCommandField) Builder {
 	return ch.combineBsonKv(tmorm.LteOp, k, v)
 }
-func (ch aggCommand) Lt(k IAggCommandKey, v any) Builder {
+func (ch aggCommand) Lt(k IAggCommandField, v IAggCommandField) Builder {
 	return ch.combineBsonKv(tmorm.LtOp, k, v)
 }
-func (ch aggCommand) Eq(k IAggCommandKey, v any) Builder {
+func (ch aggCommand) Eq(k IAggCommandField, v IAggCommandField) Builder {
 	return ch.combineBsonKv(tmorm.EqOp, k, v)
 }
-func (ch aggCommand) Ne(k IAggCommandKey, v any) Builder {
+func (ch aggCommand) Ne(k IAggCommandField, v IAggCommandField) Builder {
 	return ch.combineBsonKv(tmorm.NeOp, k, v)
 }
 
 // --------------------算术逻辑----------------
 
-func (ch aggCommand) Divide(k IAggCommandKey, v any) Builder {
+func (ch aggCommand) Abs(k IAggCommandField) Builder {
+	return ch.combineSingleVal(tmorm.DivideOp, k)
+}
+
+func (ch aggCommand) Floor(k IAggCommandField) Builder {
+	return ch.combineSingleVal(tmorm.FloorOp, k)
+}
+
+func (ch aggCommand) Divide(k IAggCommandField, v IAggCommandField) Builder {
 	return ch.combineBsonKv(tmorm.DivideOp, k, v)
 }
-func (ch aggCommand) Add(k IAggCommandKey, v any) Builder {
-	return ch.combineBsonKv(tmorm.AddOp, k, v)
+func (ch aggCommand) Add(k ...IAggCommandField) Builder {
+	return ch.combineBsonArray(tmorm.AddOp, k...)
 }
-func (ch aggCommand) Subtract(k IAggCommandKey, v any) Builder {
+func (ch aggCommand) Subtract(k IAggCommandField, v IAggCommandField) Builder {
 	return ch.combineBsonKv(tmorm.SubtractOp, k, v)
 }
-func (ch aggCommand) Multi(k IAggCommandKey, v any) Builder {
-	return ch.combineBsonKv(tmorm.MultiplyOp, k, v)
-}
-func (ch aggCommand) Mod(k IAggCommandKey, v any) Builder {
+
+func (ch aggCommand) Mod(k IAggCommandField, v IAggCommandField) Builder {
 	return ch.combineBsonKv(tmorm.ModOp, k, v)
 }
 
+func (ch aggCommand) Avg(k ...IAggCommandField) Builder {
+	return ch.combineBsonArray(tmorm.AvgOp, k...) // 注意三个点
+}
+
+func (ch aggCommand) Sum(k ...IAggCommandField) Builder {
+	return ch.combineBsonArray(tmorm.SumOp, k...) // 注意三个点
+}
+
+func (ch aggCommand) Multi(k ...IAggCommandField) Builder {
+	return ch.combineBsonArray(tmorm.MultiplyOp, k...)
+}
+
+func (ch aggCommand) Min(k ...IAggCommandField) Builder {
+	return ch.combineBsonArray(tmorm.MinOp, k...) // 注意三个点
+}
+
+func (ch aggCommand) Max(k ...IAggCommandField) Builder {
+	return ch.combineBsonArray(tmorm.MaxOp, k...) // 注意三个点
+}
+
+func (ch aggCommand) First(k IAggCommandField) Builder {
+	return ch.combineSingleVal(tmorm.FirstOp, k)
+}
+
+func (ch aggCommand) Last(k IAggCommandField) Builder {
+	return ch.combineSingleVal(tmorm.LastOp, k)
+}
+
+func (ch aggCommand) Push(k IAggCommandField) Builder {
+	return ch.combineSingleVal(tmorm.PushOp, k)
+}
+
+func (ch aggCommand) AddToSet(k IAggCommandField) Builder {
+	return ch.combineSingleVal(tmorm.AddToSetOp, k)
+}
+
 //------------------------------------------------------
 
-//func (ch aggCommand) Cond(ifExpr IAggCommandKey, thenVal, elseVal any) Builder {
-//	e1, e2 := bson.E{}, bson.E{}
-//	e1.Key = key
-//
-//	valArr := make(bson.A, 1)
-//	switch k1 := ifExpr.(type) {
-//	case Field:
-//		valArr[0] = string(k1)
-//	case aggCommand:
-//		valArr[0] = k1.m.getD()
-//	case Builder:
-//		valArr[0] = k1.data
-//	default:
-//		//valArr[0] = k1
-//	}
-//
-//	e2.Key = tmorm.CondOp
-//	e2.Value = bson.A{
-//		ifExpr.m.getD(),
-//		thenVal,
-//		elseVal,
-//	}
-//
-//	e1.Value = e2
-//
-//	ch.m.e.SetEAsBsonD(e1)
-//	ch.m.b.data = appendBsonD(ch.m.b.data, op, valArr)
-//	return *ch.m.b
-//}
+func (ch aggCommand) ArrayElemAt(k IAggCommandField, v IAggCommandField) Builder {
+	return ch.combineBsonKv(tmorm.ArrayElemAtOp, k, v)
+}
+
+func (ch aggCommand) ArrayToObj(k IAggCommandField) Builder {
+	return ch.combineSingleVal(tmorm.ArrayToObjectOp, k)
+}
+
+func (ch aggCommand) ReverseArray(k IAggCommandField) Builder {
+	return ch.combineSingleVal(tmorm.ReverseArrayOp, k)
+}
+
+func (ch aggCommand) Size(k IAggCommandField) Builder {
+	return ch.combineSingleVal(tmorm.SizeOp, k)
+}
+
+func (ch aggCommand) ConcatArray(k ...IAggCommandField) Builder {
+	return ch.combineBsonArray(tmorm.ConcatArraysOp, k...)
+}
+
+func (ch aggCommand) SliceArray(k1, k2, k3 IAggCommandField) Builder {
+	return ch.combineBsonArray(tmorm.SliceOp, k1, k2, k3)
+}
+
+func (ch aggCommand) Concat(k ...IAggCommandField) Builder {
+	return ch.combineBsonArray(tmorm.ConcatOp, k...)
+}
+
+func (ch aggCommand) And(k ...IAggCommandField) Builder {
+	return ch.combineBsonArray(tmorm.AndOp, k...)
+}
+func (ch aggCommand) Or(k ...IAggCommandField) Builder {
+	return ch.combineBsonArray(tmorm.OrOp, k...)
+}
+
+func (ch aggCommand) Type(k IAggCommandField) Builder {
+	return ch.combineSingleVal(tmorm.TypeOp, k)
+}
+
+func (ch aggCommand) Cond(ifExpr, thenVal, elseVal IAggCommandField) Builder {
+	return ch.combineBsonArray(tmorm.CondOp, ifExpr, thenVal, elseVal)
+}
 
 //------------------------------------------------------
 
-func (ch aggCommand) In(k IAggCommandKey, v ...any) Builder {
-	return ch.combineBsonArray(tmorm.InOp, k, v...) // 注意三个点
+func (ch aggCommand) In(key IAggCommandField, k ...IAggCommandField) Builder {
+	inVal := make(bson.A, 2)
+	inVal[0] = key.GetValue()
+	val := make(bson.A, 0, len(k))
+	for _, v := range k {
+		val = append(val, v.GetValue())
+	}
+	inVal[1] = val
+
+	ch.m.b.data = appendBsonD(ch.m.b.data, tmorm.InOp, inVal)
+
+	return *ch.m.b
 }
-func (ch aggCommand) NIn(k IAggCommandKey, v ...any) Builder {
-	return ch.combineBsonArray(tmorm.NinOp, k, v...) // 注意三个点
-}
-func (ch aggCommand) Avg(k IAggCommandKey, v ...any) Builder {
-	return ch.combineBsonArray(tmorm.AvgOp, k, v...) // 注意三个点
+
+func (ch aggCommand) NIn(key IAggCommandField, k ...IAggCommandField) Builder {
+	inVal := make(bson.A, 2)
+	inVal[0] = key.GetValue()
+	val := make(bson.A, 0, len(k))
+	for _, v := range k {
+		val = append(val, v.GetValue())
+	}
+	inVal[1] = val
+
+	ch.m.b.data = appendBsonD(ch.m.b.data, tmorm.NinOp, inVal)
+
+	return *ch.m.b
 }
