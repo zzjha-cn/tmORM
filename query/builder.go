@@ -12,7 +12,8 @@ type (
 	}
 )
 
-func (q Builder) CmdKey() {}
+func (q Builder) cmdFd()        {}
+func (q Builder) GetValue() any { return q.data }
 
 // ====================================================
 

@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"log"
 	"time"
 	"tm_orm"
 )
@@ -26,17 +25,17 @@ func (m SLowQueryMiddleware) Build() tmorm.MHandlerBuilder {
 						m.Fn(mctx)
 					}
 				}
-				var (
-					q          = mctx.Query.GetBsonD()
-					t          = mctx.Typ
-					collection = mctx.Session.Collection
-				)
-				log.Default().Println("emongo_orm slow query %s", map[string]any{
-					"query":   q,
-					"method":  t,
-					"collect": collection,
-					"dur":     duration.Milliseconds(),
-				})
+				//var (
+				//	q          = mctx.Query.GetBsonD()
+				//	t          = mctx.Typ
+				//	collection = mctx.Session.Collection
+				//)
+				//log.Default().Println("emongo_orm slow query %s", map[string]any{
+				//	"query":   q,
+				//	"method":  t,
+				//	"collect": collection,
+				//	"dur":     duration.Milliseconds(),
+				//})
 			}()
 			return next(mctx)
 		}

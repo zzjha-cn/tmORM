@@ -211,6 +211,48 @@ func TestMongoPro(t *testing.T) {
 				println(u)
 			},
 		},
+		{
+			name:   "测试mongo aggregate",
+			finder: fd,
+			data: &TestUser{
+				ID:   primitive.ObjectID([12]byte{1, 2, 3, 4, 5}),
+				Name: "sean",
+				Age:  20,
+			},
+			before: func(tc *tcase) {
+				data := tc.data.(*TestUser)
+				MongoClient.Database("mytest").Collection("db_test").UpdateOne(context.Background(),
+					bson.M{"_id": data.ID}, bson.M{"$set": data}, options.Update().SetUpsert(true))
+			},
+			after: func(tc *tcase) {
+				data := tc.data.(*TestUser)
+				MongoClient.Database("mytest").Collection("db_test").DeleteMany(context.Background(),
+					bson.M{"_id": data.ID})
+			},
+			check: func(tc *tcase) {
+
+				MongoClient.Database("").Collection("")
+
+				l, err := MongoClient.Database("mytest").Collection("db_test").Aggregate(
+					context.Background(),
+					bson.D{{Key: "$expr", Value: bson.D{{
+						Key:   "$in",
+						Value: bson.A{"$name", []any{"sean", "jean", "mike"}}}},
+					}},
+				)
+				if err != nil {
+					panic(err)
+				}
+
+				var u []*TestUser
+				err = l.All(context.Background(), &u)
+				if err != nil {
+					panic(err)
+				}
+
+				println(u)
+			},
+		},
 	}
 
 	for _, tc := range testCases {

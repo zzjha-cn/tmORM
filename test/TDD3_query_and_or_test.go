@@ -34,7 +34,7 @@ func TestQueryAndOr(t *testing.T) {
 				want := bson.D{
 					{Key: "$and", Value: bson.A{
 						bson.D{{Key: "key1", Value: bson.D{{"$gt", 13}}}},
-						bson.D{{Key: "key2", Value: bson.D{{"$in", []any{11, 22, 33}}}}},
+						bson.D{{Key: "key2", Value: bson.D{{"$in", bson.A{11, 22, 33}}}}},
 					}},
 				}
 				d := bd.GetBsonD()
@@ -60,7 +60,7 @@ func TestQueryAndOr(t *testing.T) {
 				want := bson.D{
 					{Key: "$or", Value: bson.A{
 						bson.D{{Key: "key1", Value: bson.D{{"$gt", 13}}}},
-						bson.D{{Key: "key2", Value: bson.D{{"$in", []any{11, 22, 33}}}}},
+						bson.D{{Key: "key2", Value: bson.D{{"$in", bson.A{11, 22, 33}}}}},
 					}},
 				}
 				d := bd.GetBsonD()
@@ -90,7 +90,7 @@ func TestQueryAndOr(t *testing.T) {
 				want := bson.D{
 					{Key: "$or", Value: bson.A{
 						bson.D{{Key: "key1", Value: bson.D{{"$gt", 13}}}},
-						bson.D{{Key: "key2", Value: bson.D{{"$in", []any{11, 22, 33}}}}},
+						bson.D{{Key: "key2", Value: bson.D{{"$in", bson.A{11, 22, 33}}}}},
 						bson.D{{Key: "$and", Value: bson.A{
 							bson.D{{Key: "key3", Value: bson.D{{"$exists", "sean"}}}},
 							bson.D{{Key: "key4", Value: bson.D{{"$lte", 100}}}},
@@ -109,7 +109,7 @@ func TestQueryAndOr(t *testing.T) {
 				a := bd.Builder().
 					And(func(a *query.QueryAnd) query.Builder {
 						b := a.Expr(func(m query.MExpr) query.Builder {
-							return m.Eq(m.Fd("name"), "sean")
+							return m.Eq(m.Fd("name"), m.Val("sean"))
 						})
 						return b
 					})

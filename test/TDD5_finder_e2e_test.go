@@ -155,13 +155,13 @@ func TestFinderE2E(t *testing.T) {
 					fil = query.Query{}.Builder().
 						Expr(func(m query.MExpr) query.Builder {
 							return m.Or(
-								m.C().Eq(m.Fd("name"), "sean2"),
+								m.C().Eq(m.Fd("name"), m.Val("sean2")),
 								m.Er().And(
 									m.C().Eq(
-										m.C().Multi(m.Fd("age"), 2),
-										40,
+										m.C().Multi(m.Fd("age"), m.Val(2)),
+										m.Val(40),
 									),
-									m.C().In(m.Fd("name"), "sean"),
+									m.C().In(m.Fd("name"), m.Val("sean")),
 								),
 							)
 						}).

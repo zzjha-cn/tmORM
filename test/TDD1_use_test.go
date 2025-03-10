@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 	tmorm "tm_orm"
+	"tm_orm/aggregator"
 	"tm_orm/finder"
 	"tm_orm/impl"
 	"tm_orm/middleware"
@@ -48,28 +49,12 @@ func TestUserType(t *testing.T) {
 	// bsonD{{"$and", bsonD{{"age" , bsonD{{"$gte",1}} } ,  }}}
 	q1.Builder().And(
 		func(a *query.QueryAnd) query.Builder {
-			return a.K("name").Gt("").
-				K("age").Eq(324)
-		},
-	)
-	q1.Builder().Or(
-		func(a *query.QueryOr) query.Builder {
-			return a.K("name").Gt("").
-				K("age").Eq(324)
-		},
-	)
-	//$and: [
-	//  { $expr: { $gt: ["$age", 30] } },  // 年龄大于30岁
-	//  { $expr: { $gt: ["$salary", 10000] } }  // 薪资高于10000
-	//]
-	q1.Builder().And(
-		func(a *query.QueryAnd) query.Builder {
 			return a.
 				Expr(func(m query.MExpr) query.Builder {
-					return m.Or(m.C().Eq(m.Fd("name"), "sean2"))
+					return m.Or(m.C().Eq(m.Fd("name"), m.Val("sean2")))
 				}).
 				Expr(func(m query.MExpr) query.Builder {
-					return m.Gt(m.Fd("salary"), 1000)
+					return m.Gt(m.Fd("salary"), m.Val(1000))
 				})
 		},
 	)
@@ -78,18 +63,20 @@ func TestUserType(t *testing.T) {
 	// bson.D{{ "$expr" , bson.D{{ "$gte" , bson.A{"$age", 33} }} }}
 	//q1.Builder().Expr().AggCmd().Gte(query.F("age"), 33)
 	q1.Builder().Expr(func(m query.MExpr) query.Builder {
-		return m.Lte(m.Fd("age"), 33)
+		return m.Lte(m.Fd("age"), m.Val(33))
 	})
 	q1.Builder().Expr(func(m query.MExpr) query.Builder {
 		return m.Gt(
-			m.C().Multi(m.Fd("age"), 10),
-			50,
+			m.C().Multi(m.Fd("age"), m.Val(10)),
+			m.Val(50),
 		)
 	})
 	q1.Builder().Expr(func(m query.MExpr) query.Builder {
 		return m.And(
-			m.C().Eq(m.Fd("name"), "sean"),
-			m.Or(),
+			m.C().Eq(m.Fd("name"), m.Val("sean")),
+			m.Or(
+				m.C().Add(m.Fd("xxx"), m.Val(1)),
+			),
 		)
 	})
 	fmt.Println(u)
@@ -151,6 +138,67 @@ func TestUserType(t *testing.T) {
 		}
 	})
 	(&finder.Finder[TestUser]{}).Find(sess1, q1)
+
+	// - aggregate
+	ag := &aggregator.Aggregator[TestUser]{}
+	// 尝试1
+	ag.Pipe().
+		Match(func(m *query.MatchCmd) query.Builder {
+			return m.
+				K("year").Gte(5).
+				Or(func(a *query.QueryOr) query.Builder {
+					return a.K("age").Lte(35).
+						K("salary").Gte(50000)
+				})
+		}).
+		Group(func(g *query.GroupCmd) query.Builder {
+			g.IdWithField("year").
+				Key("y1").Sum(g.AnyVal(1)).
+				Key("y2").Avg()
+			return g.Build()
+		}).
+		Sort("name", "age").
+		Project(true, "name", "age", "salary")
+
+	// 尝试2, 多级结构作为_id
+	ag.Pipe().
+		Group(func(group *query.GroupCmd) query.Builder {
+			// - {_id: null}
+			gb := group.Id(nil)
+			// - {_id: { $year: "$order_date"}}
+			gb.Id(
+				gb.IdBuilder().Year(gb.ToFd("order_date")),
+			)
+			// - {_id : { co1: "$customId", status:"$status" }}
+			gb.Id(
+				gb.IdBuilder().
+					SetKeyField("co1", "customId").
+					SetKeyField("status", "status"),
+			)
+			// - { _id : {
+			//		y1: { $year :"$order_date"},
+			//		m1: { $month: "$order_date"},
+			//		region:"$region",
+			//	}}
+			gb.Id(
+				gb.IdBuilder().
+					Key("y1").Year(gb.ToFd("order_date")).
+					Key("m1").Month(gb.ToFd("order_date")).
+					SetKeyField("region", "region"),
+			)
+			return gb.Build()
+		})
+
+	// 尝试3 {_id: null, totalSales: {$sum : {$multi: ["$s1" , "$s2"]}}}
+	ag.Pipe().
+		Group(func(group *query.GroupCmd) query.Builder {
+			gb := group.Id(nil).
+				Key("totalSales").Sum(
+				group.AggC().Multi(
+					group.ToFd("s1"), group.ToFd("s2"),
+				))
+			return gb.Build()
+		})
 
 }
 
