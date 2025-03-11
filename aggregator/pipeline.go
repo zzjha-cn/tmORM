@@ -1,20 +1,27 @@
 package aggregator
 
 import (
-	"go.mongodb.org/mongo-driver/bson"
 	tmorm "tm_orm"
 	"tm_orm/query"
+
+	"go.mongodb.org/mongo-driver/bson"
 )
+
+func NewPipeline() *Pipeline {
+	res := &Pipeline{}
+	res.group = query.NewGroupCmd()
+	return res
+}
 
 func (p *Pipeline) Match(f func(m *query.MatchCmd) query.Builder) *Pipeline {
 	bd := f(&p.mt)
-	p.pl = append(p.pl, bson.D{{tmorm.MatchOp, bd}})
+	p.mongoPl = append(p.mongoPl, bson.D{{tmorm.MatchOp, bd.GetData()}})
 	return p
 }
 
 func (p *Pipeline) Group(f func(group *query.GroupCmd) query.Builder) *Pipeline {
-	bd := f(&p.group)
-	p.pl = append(p.pl, bson.D{{tmorm.GroupOp, bd}})
+	bd := f(p.group)
+	p.mongoPl = append(p.mongoPl, bson.D{{tmorm.GroupOp, bd.GetData()}})
 	return p
 }
 
@@ -23,7 +30,7 @@ func (p *Pipeline) Sort(keys ...string) *Pipeline {
 	for _, k := range keys {
 		res = append(res, bson.E{k, 1})
 	}
-	p.pl = append(p.pl, bson.D{{tmorm.SortOp, res}})
+	p.mongoPl = append(p.mongoPl, bson.D{{tmorm.SortOp, res}})
 	return p
 }
 
@@ -40,11 +47,11 @@ func (p *Pipeline) Project(omitID bool, keys ...string) *Pipeline {
 		res = append(res, bson.E{k, 1})
 	}
 
-	p.pl = append(p.pl, bson.D{{tmorm.ProjectOp, res}})
+	p.mongoPl = append(p.mongoPl, bson.D{{tmorm.ProjectOp, res}})
 	return p
 }
 
 func (p *Pipeline) AppendRaw(v bson.D) *Pipeline {
-	p.pl = append(p.pl, v)
+	p.mongoPl = append(p.mongoPl, v)
 	return p
 }

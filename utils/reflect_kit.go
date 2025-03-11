@@ -41,6 +41,9 @@ func MakeBsonDByReflect(t any, omitZero bool) (bson.D, error) {
 			if ftyp.Kind() == reflect.Struct {
 				if ftyp == reflect.TypeOf(time.Time{}) {
 					// 处理Time.Time类型
+					if !fval.IsZero() {
+						res = append(res, bson.E{Key: bsonKey, Value: fval.Interface()})
+					}
 					res = append(res, bson.E{Key: bsonKey, Value: fval.Interface()})
 					continue
 				} else {

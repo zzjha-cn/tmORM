@@ -66,6 +66,11 @@ func (ch aggCommand) combineBsonKv(op string, k IAggCommandField, v IAggCommandF
 }
 
 func (ch aggCommand) combineBsonArray(op string, k ...IAggCommandField) Builder {
+	if len(k) == 1 {
+		// array相关操作符在$group里只能有一个参数，不能使用bson.A
+		return ch.combineSingleVal(op, k[0])
+	}
+
 	val := make(bson.A, 0, len(k))
 	for _, v := range k {
 		val = append(val, v.GetValue())
