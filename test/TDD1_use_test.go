@@ -207,6 +207,7 @@ type (
 		ID           primitive.ObjectID `bson:"_id,omitempty"`
 		Name         string             `bson:"name"`
 		Age          int64              `bson:"age"`
+		Department   string             `bson:"department"`
 		UnknownField string             `bson:"-"`
 		CreatedAt    time.Time          `bson:"created_at"`
 		UpdatedAt    time.Time          `bson:"updated_at"`
