@@ -40,6 +40,10 @@ func (a *Aggregator[T]) Pipe() *Pipeline {
 	return a.pl
 }
 
+func (a *Aggregator[T]) SetPipe(p *Pipeline) {
+	a.pl = p
+}
+
 func (a *Aggregator[T]) Aggregate(sess tmorm.MSession, opts ...*options.AggregateOptions) ([]*T, error) {
 	var r tmorm.MHandlerFunc = func(mctx *tmorm.MiddleCtx) tmorm.MResult {
 		p := a.GetPipeData()

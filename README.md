@@ -13,6 +13,61 @@ tmORM是一个轻量级的MongoDB ORM框架，提供了简洁而强大的API来�
 - 内置中间件机制，支持自定义中间件
 - 完整的查询表达式支持
 
+
+## 进度
+- [x] 完成query builder
+- [x] TDD测试驱动
+- [x] 完成MDB
+- [x] 完成Session
+- [x] 完成Finder
+- [x] 完成query expr, and , or
+- [x] 完成query aggregate operator 聚合操作符
+- [x] 完成Updater
+- [x] 完成Middleware
+- [x] 完成Match
+- [x] 完成Group
+- [x] 完成Aggregater
+- [x] 完成端到端测试
+- [ ] 完成Lookup
+- [ ] 完成Sorted
+- [ ] 完成Projection
+- [ ] 完成Agg stage阶段的各个命令封装（https://www.mongodb.com/zh-cn/docs/manual/reference/operator/aggregation/sort/）
+- [ ] 完成集成测试
+- [ ] 完成性能测试
+- [ ] builder对象构建性优化
+- [ ] 增加元数据管理中心
+- [ ] 增加结果集处理封装
+- [ ] 重构查询接口之间的关系
+
+## 性能测试
+```
+goos: darwin
+goarch: arm64
+
+BenchmarkBasicQuery
+BenchmarkBasicQuery/ORM-SimpleQuery
+BenchmarkBasicQuery/ORM-SimpleQuery-8         	      38	  31457872 ns/op	 6580806 B/op	  116939 allocs/op
+BenchmarkBasicQuery/Native-SimpleQuery
+BenchmarkBasicQuery/Native-SimpleQuery-8      	      43	  31620329 ns/op	 8621775 B/op	  109147 allocs/op
+
+BenchmarkComplexQuery
+BenchmarkComplexQuery/ORM-ComplexQuery
+BenchmarkComplexQuery/ORM-ComplexQuery-8         	      27	  43921549 ns/op	 8594605 B/op	  150290 allocs/op
+BenchmarkComplexQuery/Native-ComplexQuery
+BenchmarkComplexQuery/Native-ComplexQuery-8      	      27	  42676515 ns/op	11214571 B/op	  140258 allocs/op
+
+BenchmarkUpdate/ORM-Update
+BenchmarkUpdate/ORM-Update-8         	     165	   7181910 ns/op	    5520 B/op	      97 allocs/op
+BenchmarkUpdate/Native-Update
+BenchmarkUpdate/Native-Update-8      	     169	   7048338 ns/op	    4454 B/op	      69 allocs/op
+
+BenchmarkAggregate
+BenchmarkAggregate/ORM-Aggregate
+BenchmarkAggregate/ORM-Aggregate-8         	     256	   4115053 ns/op	   33358 B/op	     586 allocs/op
+BenchmarkAggregate/Native-Aggregate
+BenchmarkAggregate/Native-Aggregate-8      	     248	   5099585 ns/op	   59782 B/op	    1170 allocs/op
+```
+
 ## 安装
 
 ```bash
@@ -234,7 +289,7 @@ finder.Find(sess, nil)
 - 评估操作符：`$expr`, `$regex`, `$mod`
 - 数组操作符：`$all`, `$elemMatch`, `$size`
 
-更多操作符支持详见[文档](doc/support_exprssion.md)。
+更多操作符支持详见[文档](docs/support_exprssion.md)。
 
 ## 许可证
 
