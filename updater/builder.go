@@ -1,8 +1,8 @@
 package updater
 
 import (
+	"github.com/zzjha-cn/tm_orm/utils"
 	"go.mongodb.org/mongo-driver/bson"
-	"tm_orm/utils"
 )
 
 type (

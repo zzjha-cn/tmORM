@@ -3,10 +3,10 @@ package test
 import (
 	"context"
 	"fmt"
+	tmorm "github.com/zzjha-cn/tm_orm"
+	"github.com/zzjha-cn/tm_orm/finder"
+	"github.com/zzjha-cn/tm_orm/query"
 	"testing"
-	tmorm "tm_orm"
-	"tm_orm/finder"
-	"tm_orm/query"
 
 	"github.com/stretchr/testify/assert"
 	"go.mongodb.org/mongo-driver/bson"

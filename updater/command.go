@@ -1,9 +1,9 @@
 package updater
 
 import (
-	tmorm "tm_orm"
-	"tm_orm/query"
-	"tm_orm/utils"
+	tmorm "github.com/zzjha-cn/tm_orm"
+	"github.com/zzjha-cn/tm_orm/query"
+	"github.com/zzjha-cn/tm_orm/utils"
 
 	"go.mongodb.org/mongo-driver/bson"
 )

@@ -3,13 +3,13 @@ package test
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
+	tmorm "github.com/zzjha-cn/tm_orm"
+	"github.com/zzjha-cn/tm_orm/query"
+	"github.com/zzjha-cn/tm_orm/updater"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"testing"
 	"time"
-	tmorm "tm_orm"
-	"tm_orm/query"
-	"tm_orm/updater"
 )
 
 // 端到端测试updater

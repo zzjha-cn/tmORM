@@ -1,8 +1,8 @@
 package aggregator
 
 import (
-	tmorm "tm_orm"
-	"tm_orm/query"
+	tmorm "github.com/zzjha-cn/tm_orm"
+	"github.com/zzjha-cn/tm_orm/query"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"

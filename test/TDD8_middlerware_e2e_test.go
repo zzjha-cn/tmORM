@@ -4,14 +4,14 @@ import (
 	"context"
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	tmorm "github.com/zzjha-cn/tm_orm"
+	"github.com/zzjha-cn/tm_orm/finder"
+	"github.com/zzjha-cn/tm_orm/middleware"
+	"github.com/zzjha-cn/tm_orm/query"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"testing"
-	tmorm "tm_orm"
-	"tm_orm/finder"
-	"tm_orm/middleware"
-	"tm_orm/query"
 )
 
 func TestMiddlewareE2E(t *testing.T) {

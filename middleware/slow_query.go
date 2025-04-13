@@ -1,8 +1,8 @@
 package middleware
 
 import (
+	tmorm "github.com/zzjha-cn/tm_orm"
 	"time"
-	"tm_orm"
 )
 
 type SLowQueryMiddleware struct {

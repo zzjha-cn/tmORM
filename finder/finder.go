@@ -1,10 +1,10 @@
 package finder
 
 import (
+	tmorm "github.com/zzjha-cn/tm_orm"
+	"github.com/zzjha-cn/tm_orm/impl"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	tmorm "tm_orm"
-	"tm_orm/impl"
 )
 
 type (
