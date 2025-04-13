@@ -1,12 +1,12 @@
 package updater
 
 import (
+	tmorm "github.com/zzjha-cn/tm_orm"
+	"github.com/zzjha-cn/tm_orm/impl"
+	"github.com/zzjha-cn/tm_orm/query"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	tmorm "tm_orm"
-	"tm_orm/impl"
-	"tm_orm/query"
 )
 
 type (

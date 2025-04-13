@@ -1,4 +1,4 @@
-module tm_orm
+module github.com/zzjha-cn/tm_orm
 
 go 1.21
 

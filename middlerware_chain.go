@@ -1,7 +1,7 @@
 package tmorm
 
 import (
-	"tm_orm/impl"
+	"github.com/zzjha-cn/tm_orm/impl"
 )
 
 // 调用流程中间件，负责状态过滤与结果集

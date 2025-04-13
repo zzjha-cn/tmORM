@@ -2,9 +2,9 @@ package test
 
 import (
 	"github.com/stretchr/testify/assert"
+	"github.com/zzjha-cn/tm_orm/updater"
 	"go.mongodb.org/mongo-driver/bson"
 	"testing"
-	"tm_orm/updater"
 )
 
 func TestUpdateCmd(t *testing.T) {

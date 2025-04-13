@@ -2,9 +2,9 @@ package test
 
 import (
 	"github.com/stretchr/testify/assert"
+	"github.com/zzjha-cn/tm_orm/query"
 	"go.mongodb.org/mongo-driver/bson"
 	"testing"
-	"tm_orm/query"
 )
 
 func TestQueryBase(t *testing.T) {

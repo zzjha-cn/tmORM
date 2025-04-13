@@ -3,12 +3,12 @@ package test
 import (
 	"context"
 	"fmt"
+	"github.com/zzjha-cn/tm_orm/finder"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"testing"
-	"tm_orm/finder"
 )
 
 // 端到端测试finder

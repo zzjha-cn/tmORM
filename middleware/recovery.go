@@ -2,8 +2,8 @@ package middleware
 
 import (
 	"fmt"
+	tmorm "github.com/zzjha-cn/tm_orm"
 	"log"
-	"tm_orm"
 )
 
 func Recovery(next tmorm.MHandlerFunc) tmorm.MHandlerFunc {
