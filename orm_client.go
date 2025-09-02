@@ -1,4 +1,4 @@
-package v2
+package tmorm
 
 import (
 	"context"
@@ -6,21 +6,19 @@ import (
 	"sync"
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// ORMClient 统一的ORM客户端，整合所有功能
 type ORMClient struct {
-	client          *mongo.Client
-	sessionManager  *SessionManager
-	middleware      []MiddlewareFunc
-	config          *ClientConfig
-	mu              sync.RWMutex
-	closed          bool
+	client     *mongo.Client
+	middleware []MiddlewareFunc
+	config     *ClientConfig
+	mu         sync.RWMutex
+	closed     bool
 }
 
-// ClientConfig ORM客户端配置
 type ClientConfig struct {
 	// MongoDB连接配置
 	URI                    string
@@ -31,15 +29,11 @@ type ClientConfig struct {
 	HeartbeatInterval      time.Duration
 	ServerSelectionTimeout time.Duration
 
-	// 会话管理配置
-	EnableSessionPool bool
-	SessionPoolSize   int
-
 	// 中间件配置
-	EnableLogging    bool
-	EnableMetrics    bool
-	EnableTracing    bool
-	LogLevel         string
+	EnableLogging bool
+	EnableMetrics bool
+	EnableTracing bool
+	LogLevel      string
 }
 
 // DefaultClientConfig 默认客户端配置
@@ -52,8 +46,6 @@ func DefaultClientConfig(uri string) *ClientConfig {
 		MaxIdleTime:            5 * time.Minute,
 		HeartbeatInterval:      10 * time.Second,
 		ServerSelectionTimeout: 30 * time.Second,
-		EnableSessionPool:      true,
-		SessionPoolSize:        50,
 		EnableLogging:          true,
 		EnableMetrics:          false,
 		EnableTracing:          false,
@@ -61,13 +53,12 @@ func DefaultClientConfig(uri string) *ClientConfig {
 	}
 }
 
-// NewORMClient 创建新的ORM客户端
 func NewORMClient(config *ClientConfig) (*ORMClient, error) {
 	if config == nil {
 		config = DefaultClientConfig("mongodb://localhost:27017")
 	}
 
-	// 创建MongoDB客户端
+	// 创建MongoDB客户端选项
 	clientOptions := options.Client().ApplyURI(config.URI)
 	clientOptions.SetMaxPoolSize(config.MaxPoolSize)
 	clientOptions.SetMinPoolSize(config.MinPoolSize)
@@ -76,6 +67,7 @@ func NewORMClient(config *ClientConfig) (*ORMClient, error) {
 	clientOptions.SetHeartbeatInterval(config.HeartbeatInterval)
 	clientOptions.SetServerSelectionTimeout(config.ServerSelectionTimeout)
 
+	// 创建MongoDB客户端
 	client, err := mongo.Connect(context.Background(), clientOptions)
 	if err != nil {
 		return nil, err
@@ -93,23 +85,6 @@ func NewORMClient(config *ClientConfig) (*ORMClient, error) {
 		config: config,
 	}
 
-	// 初始化会话管理器（如果启用）
-	if config.EnableSessionPool {
-		sessionConfig := &SessionConfig{
-			MaxPoolSize:            config.MaxPoolSize,
-			MinPoolSize:            config.MinPoolSize,
-			ConnectTimeout:         config.ConnectTimeout,
-			MaxIdleTime:            config.MaxIdleTime,
-			HeartbeatInterval:      config.HeartbeatInterval,
-			ServerSelectionTimeout: config.ServerSelectionTimeout,
-		}
-		sessionManager, err := NewSessionManager(config.URI, sessionConfig)
-		if err != nil {
-			return nil, err
-		}
-		ormClient.sessionManager = sessionManager
-	}
-
 	// 初始化默认中间件
 	ormClient.initDefaultMiddleware()
 
@@ -117,33 +92,18 @@ func NewORMClient(config *ClientConfig) (*ORMClient, error) {
 }
 
 // Database 获取数据库操作接口
-func (c *ORMClient) Database(name string) *Database {
-	return &Database{
+func (c *ORMClient) Database(name string) *DatabaseWrapper {
+	return &DatabaseWrapper{
 		client:   c,
 		name:     name,
 		database: c.client.Database(name),
 	}
 }
 
-// Collection 直接获取集合操作接口
-func (c *ORMClient) Collection(database, collection string) *Collection {
-	return c.Database(database).Collection(collection)
-}
-
-// Repository 创建Repository
-func (c *ORMClient) Repository(database, collection string) *Repository {
-	return NewRepository(c.Collection(database, collection))
-}
-
-// TypedCollection 创建类型化集合
-func TypedCollection[T any](client *ORMClient, database, collection string) *TypedCollection[T] {
-	return NewTypedCollection[T](client.Collection(database, collection))
-}
-
-// TypedRepository 创建类型化Repository
-func TypedRepository[T any](client *ORMClient, database, collection string) *TypedRepository[T] {
-	return NewTypedRepository[T](client.Collection(database, collection))
-}
+//// Collection 直接获取集合操作接口
+//func (c *ORMClient) Collection(database, collection string) *CollectionWrapper {
+//	return c.Database(database).Collection(collection)
+//}
 
 // Use 添加中间件
 func (c *ORMClient) Use(middleware ...MiddlewareFunc) *ORMClient {
@@ -153,31 +113,13 @@ func (c *ORMClient) Use(middleware ...MiddlewareFunc) *ORMClient {
 	return c
 }
 
-// GetSession 获取会话（如果启用会话池）
-func (c *ORMClient) GetSession(ctx context.Context, database, collection string) (*Session, error) {
-	if c.sessionManager == nil {
-		return nil, ErrSessionPoolDisabled
-	}
-	return c.sessionManager.GetSession(ctx, database, collection)
-}
-
-// ReleaseSession 释放会话
-func (c *ORMClient) ReleaseSession(session *Session) {
-	if c.sessionManager != nil {
-		c.sessionManager.ReleaseSession(session)
-	}
-}
-
-// WithContext 创建带上下文的客户端
-func (c *ORMClient) WithContext(ctx context.Context) *ContextualClient {
-	return &ContextualClient{
-		client: c,
-		ctx:    ctx,
-	}
+// StartSession 开始会话（利用mongo-driver原生session管理）
+func (c *ORMClient) StartSession(opts ...*options.SessionOptions) (mongo.Session, error) {
+	return c.client.StartSession(opts...)
 }
 
 // Transaction 执行事务
-func (c *ORMClient) Transaction(ctx context.Context, fn func(ctx context.Context) error) error {
+func (c *ORMClient) Transaction(ctx context.Context, fn func(mongo.SessionContext) error, opts ...*options.TransactionOptions) error {
 	session, err := c.client.StartSession()
 	if err != nil {
 		return err
@@ -185,10 +127,33 @@ func (c *ORMClient) Transaction(ctx context.Context, fn func(ctx context.Context
 	defer session.EndSession(ctx)
 
 	return mongo.WithSession(ctx, session, func(sc mongo.SessionContext) error {
-		return session.WithTransaction(sc, func(sc mongo.SessionContext) (interface{}, error) {
+		_, err := session.WithTransaction(sc, func(sc mongo.SessionContext) (interface{}, error) {
 			return nil, fn(sc)
-		})
+		}, opts...)
+		return err
 	})
+}
+
+// executeWithMiddleware 执行带中间件的操作
+func (c *ORMClient) executeWithMiddleware(ctx context.Context, operation string, filter bson.M, handler func() (interface{}, error)) (interface{}, error) {
+	if len(c.middleware) == 0 {
+		return handler()
+	}
+
+	// 构建中间件链
+	var execute func(int) (interface{}, error)
+	execute = func(index int) (interface{}, error) {
+		if index >= len(c.middleware) {
+			return handler()
+		}
+
+		middleware := c.middleware[index]
+		return middleware(ctx, operation, filter, func() (interface{}, error) {
+			return execute(index + 1)
+		})
+	}
+
+	return execute(0)
 }
 
 // Stats 获取客户端统计信息
@@ -196,18 +161,13 @@ func (c *ORMClient) Stats() ClientStats {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	stats := ClientStats{
-		Connected:        !c.closed,
-		MiddlewareCount:  len(c.middleware),
-		SessionPoolEnabled: c.sessionManager != nil,
+	return ClientStats{
+		Connected:       !c.closed,
+		MiddlewareCount: len(c.middleware),
+		URI:             c.config.URI,
+		MaxPoolSize:     c.config.MaxPoolSize,
+		MinPoolSize:     c.config.MinPoolSize,
 	}
-
-	if c.sessionManager != nil {
-		sessionStats := c.sessionManager.Stats()
-		stats.SessionStats = &sessionStats
-	}
-
-	return stats
 }
 
 // Close 关闭客户端
@@ -220,16 +180,12 @@ func (c *ORMClient) Close() error {
 	}
 
 	c.closed = true
-
-	// 关闭会话管理器
-	if c.sessionManager != nil {
-		if err := c.sessionManager.Close(); err != nil {
-			return err
-		}
-	}
-
-	// 关闭MongoDB客户端
 	return c.client.Disconnect(context.Background())
+}
+
+// MongoClient 获取原生MongoDB客户端
+func (c *ORMClient) MongoClient() *mongo.Client {
+	return c.client
 }
 
 // initDefaultMiddleware 初始化默认中间件
@@ -247,40 +203,104 @@ func (c *ORMClient) initDefaultMiddleware() {
 	}
 }
 
-// ClientStats 客户端统计信息
-type ClientStats struct {
-	Connected          bool          `json:"connected"`
-	MiddlewareCount    int           `json:"middleware_count"`
-	SessionPoolEnabled bool          `json:"session_pool_enabled"`
-	SessionStats       *SessionStats `json:"session_stats,omitempty"`
+// DatabaseWrapper 数据库包装器
+type DatabaseWrapper struct {
+	client   *ORMClient
+	name     string
+	database *mongo.Database
 }
 
-// ContextualClient 带上下文的客户端
-type ContextualClient struct {
-	client *ORMClient
-	ctx    context.Context
+//// Collection 获取集合包装器
+//func (d *DatabaseWrapper) Collection(name string) *CollectionWrapper {
+//	return &CollectionWrapper{
+//		database:   d,
+//		name:       name,
+//		collection: d.database.Collection(name),
+//		filter:     bson.M{},
+//	}
+//}
+
+// Name 获取数据库名称
+func (d *DatabaseWrapper) Name() string {
+	return d.name
 }
 
-// Database 获取数据库操作接口
-func (cc *ContextualClient) Database(name string) *ContextualDatabase {
-	return &ContextualDatabase{
-		database: cc.client.Database(name),
-		ctx:      cc.ctx,
+// Client 获取ORM客户端
+func (d *DatabaseWrapper) Client() *ORMClient {
+	return d.client
+}
+
+// MongoDatabase 获取原生MongoDB数据库对象
+func (d *DatabaseWrapper) MongoDatabase() *mongo.Database {
+	return d.database
+}
+
+// Drop 删除数据库
+func (d *DatabaseWrapper) Drop(ctx context.Context) error {
+	return d.database.Drop(ctx)
+}
+
+// 中间件相关类型定义
+type MiddlewareFunc func(ctx context.Context, operation string, filter bson.M, next func() (interface{}, error)) (interface{}, error)
+
+// LoggingMiddleware 日志中间件
+func LoggingMiddleware(level string) MiddlewareFunc {
+	return func(ctx context.Context, operation string, filter bson.M, next func() (interface{}, error)) (interface{}, error) {
+		start := time.Now()
+		// 这里可以使用更复杂的日志库
+		println("["+level+"] Starting operation:", operation, "filter:", filter)
+
+		result, err := next()
+
+		duration := time.Since(start)
+		if err != nil {
+			println("["+level+"] Operation", operation, "failed after", duration, ":", err)
+		} else {
+			println("["+level+"] Operation", operation, "completed in", duration)
+		}
+
+		return result, err
 	}
 }
 
-// Collection 直接获取集合操作接口
-func (cc *ContextualClient) Collection(database, collection string) *ContextualCollection {
-	return cc.Database(database).Collection(collection)
+// MetricsMiddleware 指标中间件
+func MetricsMiddleware() MiddlewareFunc {
+	return func(ctx context.Context, operation string, filter bson.M, next func() (interface{}, error)) (interface{}, error) {
+		start := time.Now()
+
+		result, err := next()
+
+		duration := time.Since(start)
+		// 这里可以集成实际的指标收集系统
+		println("[METRICS] Operation:", operation, "Duration:", duration, "Success:", err == nil)
+
+		return result, err
+	}
 }
 
-// Transaction 执行事务
-func (cc *ContextualClient) Transaction(fn func(ctx context.Context) error) error {
-	return cc.client.Transaction(cc.ctx, fn)
+// TracingMiddleware 追踪中间件
+func TracingMiddleware() MiddlewareFunc {
+	return func(ctx context.Context, operation string, filter bson.M, next func() (interface{}, error)) (interface{}, error) {
+		// 这里可以集成分布式追踪系统如Jaeger、Zipkin等
+		println("[TRACE] Starting trace for operation:", operation)
+
+		result, err := next()
+
+		println("[TRACE] Completed trace for operation:", operation)
+		return result, err
+	}
+}
+
+// ClientStats 客户端统计信息
+type ClientStats struct {
+	Connected       bool   `json:"connected"`
+	MiddlewareCount int    `json:"middleware_count"`
+	URI             string `json:"uri"`
+	MaxPoolSize     uint64 `json:"max_pool_size"`
+	MinPoolSize     uint64 `json:"min_pool_size"`
 }
 
 // 错误定义
 var (
-	ErrSessionPoolDisabled = errors.New("session pool is disabled")
-	ErrClientClosed        = errors.New("client is closed")
+	ErrClientClosed = errors.New("client is closed")
 )
