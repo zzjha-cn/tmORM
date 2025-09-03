@@ -2,11 +2,12 @@ package collection
 
 import (
 	"context"
+	tmorm "tm_orm"
+	"tm_orm/impl"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	tmorm "tm_orm"
-	"tm_orm/impl"
 )
 
 // Collection 统一的集合操作接口
@@ -56,8 +57,8 @@ func (c *Collection[T]) Find(ctx context.Context, opts ...*options.FindOptions) 
 			res    []*T
 			filter bson.D
 		)
-		if mctx.Query != nil {
-			filter = mctx.Query.GetBsonD()
+		if mctx.Operation != nil {
+			filter = mctx.Operation.GetBsonD()
 		}
 
 		cursor, err := c.client.Database(c.DBName).MongoDatabase().Collection(c.CollectionName).Find(ctx, filter, opts...)
@@ -77,7 +78,7 @@ func (c *Collection[T]) Find(ctx context.Context, opts ...*options.FindOptions) 
 	}
 
 	mctx := tmorm.NewMiddleContext(ctx, FindMtd)
-	mctx.Query = c.filter
+	mctx.Operation = c.filter
 
 	tmorm.Executor(mctx, c.combineChain(r))
 	res := mctx.Result
@@ -94,8 +95,8 @@ func (c *Collection[T]) FindOne(ctx context.Context, opts ...*options.FindOneOpt
 			res    T
 			filter bson.D
 		)
-		if mctx.Query != nil {
-			filter = mctx.Query.GetBsonD()
+		if mctx.Operation != nil {
+			filter = mctx.Operation.GetBsonD()
 		}
 
 		err := c.client.Database(c.DBName).MongoDatabase().Collection(c.CollectionName).FindOne(ctx, filter, opts...).Decode(&res)
@@ -109,7 +110,7 @@ func (c *Collection[T]) FindOne(ctx context.Context, opts ...*options.FindOneOpt
 	}
 
 	mctx := tmorm.NewMiddleContext(ctx, FindOneMtd)
-	mctx.Query = c.filter
+	mctx.Operation = c.filter
 
 	tmorm.Executor(mctx, c.combineChain(r))
 	res := mctx.Result
@@ -123,8 +124,8 @@ func (c *Collection[T]) FindOne(ctx context.Context, opts ...*options.FindOneOpt
 func (c *Collection[T]) Count(ctx context.Context, opts ...*options.CountOptions) (int64, error) {
 	var r tmorm.MiddlewareFunc = func(mctx *tmorm.MiddleCtx, next func(m *tmorm.MiddleCtx)) {
 		var filter bson.D
-		if mctx.Query != nil {
-			filter = mctx.Query.GetBsonD()
+		if mctx.Operation != nil {
+			filter = mctx.Operation.GetBsonD()
 		}
 
 		count, err := c.client.Database(c.DBName).MongoDatabase().Collection(c.CollectionName).CountDocuments(ctx, filter, opts...)
@@ -134,7 +135,7 @@ func (c *Collection[T]) Count(ctx context.Context, opts ...*options.CountOptions
 	}
 
 	mctx := tmorm.NewMiddleContext(ctx, CountMtd)
-	mctx.Query = c.filter
+	mctx.Operation = c.filter
 
 	tmorm.Executor(mctx, c.combineChain(r))
 	res := mctx.Result
@@ -211,8 +212,8 @@ func (c *Collection[T]) InsertMany(ctx context.Context, docs []*T) (*mongo.Inser
 func (c *Collection[T]) Delete(ctx context.Context) (*mongo.DeleteResult, error) {
 	var r tmorm.MiddlewareFunc = func(mctx *tmorm.MiddleCtx, next func(m *tmorm.MiddleCtx)) {
 		var filter bson.D
-		if mctx.Query != nil {
-			filter = mctx.Query.GetBsonD()
+		if mctx.Operation != nil {
+			filter = mctx.Operation.GetBsonD()
 		}
 		res, err := c.client.Database(c.DBName).MongoDatabase().Collection(c.CollectionName).DeleteMany(ctx, filter)
 		mctx.Result = &tmorm.MResult{Val: res, Err: err}
@@ -220,7 +221,7 @@ func (c *Collection[T]) Delete(ctx context.Context) (*mongo.DeleteResult, error)
 	}
 
 	mctx := tmorm.NewMiddleContext(ctx, "DeleteMany")
-	mctx.Query = c.filter
+	mctx.Operation = c.filter
 	tmorm.Executor(mctx, c.combineChain(r))
 	res := mctx.Result
 	if res.Val != nil {
@@ -233,8 +234,8 @@ func (c *Collection[T]) Delete(ctx context.Context) (*mongo.DeleteResult, error)
 func (c *Collection[T]) DeleteOne(ctx context.Context) (*mongo.DeleteResult, error) {
 	var r tmorm.MiddlewareFunc = func(mctx *tmorm.MiddleCtx, next func(m *tmorm.MiddleCtx)) {
 		var filter bson.D
-		if mctx.Query != nil {
-			filter = mctx.Query.GetBsonD()
+		if mctx.Operation != nil {
+			filter = mctx.Operation.GetBsonD()
 		}
 		res, err := c.client.Database(c.DBName).MongoDatabase().Collection(c.CollectionName).DeleteOne(ctx, filter)
 		mctx.Result = &tmorm.MResult{Val: res, Err: err}
@@ -242,7 +243,7 @@ func (c *Collection[T]) DeleteOne(ctx context.Context) (*mongo.DeleteResult, err
 	}
 
 	mctx := tmorm.NewMiddleContext(ctx, "DeleteOne")
-	mctx.Query = c.filter
+	mctx.Operation = c.filter
 	tmorm.Executor(mctx, c.combineChain(r))
 	res := mctx.Result
 	if res.Val != nil {

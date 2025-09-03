@@ -2,7 +2,6 @@ package tmorm
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -156,68 +155,3 @@ func (d *DatabaseWrapper) MongoDatabase() *mongo.Database {
 func (d *DatabaseWrapper) Drop(ctx context.Context) error {
 	return d.database.Drop(ctx)
 }
-
-//// 中间件相关类型定义
-//type MiddlewareFunc func(ctx context.Context, operation string, filter bson.M, next func() (interface{}, error)) (interface{}, error)
-//
-//// LoggingMiddleware 日志中间件
-//func LoggingMiddleware(level string) MiddlewareFunc {
-//	return func(ctx context.Context, operation string, filter bson.M, next func() (interface{}, error)) (interface{}, error) {
-//		start := time.Now()
-//		// 这里可以使用更复杂的日志库
-//		println("["+level+"] Starting operation:", operation, "filter:", filter)
-//
-//		result, err := next()
-//
-//		duration := time.Since(start)
-//		if err != nil {
-//			println("["+level+"] Operation", operation, "failed after", duration, ":", err)
-//		} else {
-//			println("["+level+"] Operation", operation, "completed in", duration)
-//		}
-//
-//		return result, err
-//	}
-//}
-
-//// MetricsMiddleware 指标中间件
-//func MetricsMiddleware() MiddlewareFunc {
-//	return func(ctx context.Context, operation string, filter bson.M, next func() (interface{}, error)) (interface{}, error) {
-//		start := time.Now()
-//
-//		result, err := next()
-//
-//		duration := time.Since(start)
-//		// 这里可以集成实际的指标收集系统
-//		println("[METRICS] Operation:", operation, "Duration:", duration, "Success:", err == nil)
-//
-//		return result, err
-//	}
-//}
-//
-//// TracingMiddleware 追踪中间件
-//func TracingMiddleware() MiddlewareFunc {
-//	return func(ctx context.Context, operation string, filter bson.M, next func() (interface{}, error)) (interface{}, error) {
-//		// 这里可以集成分布式追踪系统如Jaeger、Zipkin等
-//		println("[TRACE] Starting trace for operation:", operation)
-//
-//		result, err := next()
-//
-//		println("[TRACE] Completed trace for operation:", operation)
-//		return result, err
-//	}
-//}
-//
-//// ClientStats 客户端统计信息
-//type ClientStats struct {
-//	Connected       bool   `json:"connected"`
-//	MiddlewareCount int    `json:"middleware_count"`
-//	URI             string `json:"uri"`
-//	MaxPoolSize     uint64 `json:"max_pool_size"`
-//	MinPoolSize     uint64 `json:"min_pool_size"`
-//}
-
-// 错误定义
-var (
-	ErrClientClosed = errors.New("client is closed")
-)

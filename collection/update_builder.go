@@ -51,8 +51,8 @@ func (u *UpdateBuilder[T]) Inc(field string, value any) *UpdateBuilder[T] {
 func (u *UpdateBuilder[T]) Update(ctx context.Context, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error) {
 	var r tmorm.MiddlewareFunc = func(mctx *tmorm.MiddleCtx, next func(m *tmorm.MiddleCtx)) {
 		var filter bson.D
-		if mctx.Query != nil {
-			filter = mctx.Query.GetBsonD()
+		if mctx.Operation != nil {
+			filter = mctx.Operation.GetBsonD()
 		}
 
 		res, err := u.collection.client.Database(u.collection.DBName).MongoDatabase().Collection(u.collection.CollectionName).UpdateMany(ctx, filter, u.updates, opts...)
@@ -61,7 +61,7 @@ func (u *UpdateBuilder[T]) Update(ctx context.Context, opts ...*options.UpdateOp
 	}
 
 	mctx := tmorm.NewMiddleContext(ctx, "UpdateMany")
-	mctx.Query = u.collection.filter
+	mctx.Operation = u.collection.filter
 
 	tmorm.Executor(mctx, u.collection.combineChain(r))
 	res := mctx.Result
@@ -75,8 +75,8 @@ func (u *UpdateBuilder[T]) Update(ctx context.Context, opts ...*options.UpdateOp
 func (u *UpdateBuilder[T]) UpdateOne(ctx context.Context, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error) {
 	var r tmorm.MiddlewareFunc = func(mctx *tmorm.MiddleCtx, next func(m *tmorm.MiddleCtx)) {
 		var filter bson.D
-		if mctx.Query != nil {
-			filter = mctx.Query.GetBsonD()
+		if mctx.Operation != nil {
+			filter = mctx.Operation.GetBsonD()
 		}
 
 		res, err := u.collection.client.Database(u.collection.DBName).MongoDatabase().Collection(u.collection.CollectionName).UpdateOne(ctx, filter, u.updates, opts...)
@@ -85,7 +85,7 @@ func (u *UpdateBuilder[T]) UpdateOne(ctx context.Context, opts ...*options.Updat
 	}
 
 	mctx := tmorm.NewMiddleContext(ctx, "UpdateOne")
-	mctx.Query = u.collection.filter
+	mctx.Operation = u.collection.filter
 
 	tmorm.Executor(mctx, u.collection.combineChain(r))
 	res := mctx.Result
