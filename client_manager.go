@@ -146,18 +146,6 @@ func (cm *ClientManager) HealthCheck(ctx context.Context) map[string]error {
 	return results
 }
 
-// Stats 获取所有客户端的统计信息
-func (cm *ClientManager) Stats() map[string]ClientStats {
-	cm.mu.RLock()
-	defer cm.mu.RUnlock()
-
-	stats := make(map[string]ClientStats)
-	for name, client := range cm.clients {
-		stats[name] = client.Stats()
-	}
-	return stats
-}
-
 // Close 关闭所有客户端
 func (cm *ClientManager) Close() error {
 	cm.mu.Lock()
