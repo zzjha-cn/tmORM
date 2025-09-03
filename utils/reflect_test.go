@@ -28,7 +28,7 @@ type PointerStruct struct {
 func TestMakeBsonDByReflect(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    interface{}
+		input    any
 		omitZero bool
 		want     bson.D
 		wantErr  bool
