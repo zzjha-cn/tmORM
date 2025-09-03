@@ -50,7 +50,7 @@ func (u *UpdateBuilder[T]) Inc(field string, value any) *UpdateBuilder[T] {
 // Update 执行更新操作
 func (u *UpdateBuilder[T]) Update(ctx context.Context, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error) {
 	var r tmorm.MiddlewareFunc = func(mctx *tmorm.MiddleCtx, next func(m *tmorm.MiddleCtx)) {
-		var filter bson.D
+		var filter = bson.D{}
 		if mctx.Operation != nil {
 			filter = mctx.Operation.GetBsonD()
 		}
@@ -74,7 +74,7 @@ func (u *UpdateBuilder[T]) Update(ctx context.Context, opts ...*options.UpdateOp
 // UpdateOne 执行单个文档更新
 func (u *UpdateBuilder[T]) UpdateOne(ctx context.Context, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error) {
 	var r tmorm.MiddlewareFunc = func(mctx *tmorm.MiddleCtx, next func(m *tmorm.MiddleCtx)) {
-		var filter bson.D
+		var filter = bson.D{}
 		if mctx.Operation != nil {
 			filter = mctx.Operation.GetBsonD()
 		}

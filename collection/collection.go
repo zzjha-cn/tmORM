@@ -112,7 +112,7 @@ func (c *Collection[T]) Find(ctx context.Context, opts ...*options.FindOptions) 
 	var r tmorm.MiddlewareFunc = func(mctx *tmorm.MiddleCtx, next func(m *tmorm.MiddleCtx)) {
 		var (
 			res    []*T
-			filter bson.D
+			filter = bson.D{}
 		)
 		if mctx.Operation != nil {
 			filter = mctx.Operation.GetBsonD()
@@ -150,7 +150,7 @@ func (c *Collection[T]) FindOne(ctx context.Context, opts ...*options.FindOneOpt
 	var r tmorm.MiddlewareFunc = func(mctx *tmorm.MiddleCtx, next func(m *tmorm.MiddleCtx)) {
 		var (
 			res    T
-			filter bson.D
+			filter = bson.D{}
 		)
 		if mctx.Operation != nil {
 			filter = mctx.Operation.GetBsonD()
@@ -180,7 +180,7 @@ func (c *Collection[T]) FindOne(ctx context.Context, opts ...*options.FindOneOpt
 // Count 统计文档数量
 func (c *Collection[T]) Count(ctx context.Context, opts ...*options.CountOptions) (int64, error) {
 	var r tmorm.MiddlewareFunc = func(mctx *tmorm.MiddleCtx, next func(m *tmorm.MiddleCtx)) {
-		var filter bson.D
+		var filter bson.D = bson.D{}
 		if mctx.Operation != nil {
 			filter = mctx.Operation.GetBsonD()
 		}
@@ -268,7 +268,7 @@ func (c *Collection[T]) InsertMany(ctx context.Context, docs []*T) (*mongo.Inser
 // Delete 删除文档
 func (c *Collection[T]) Delete(ctx context.Context) (*mongo.DeleteResult, error) {
 	var r tmorm.MiddlewareFunc = func(mctx *tmorm.MiddleCtx, next func(m *tmorm.MiddleCtx)) {
-		var filter bson.D
+		var filter bson.D = bson.D{}
 		if mctx.Operation != nil {
 			filter = mctx.Operation.GetBsonD()
 		}
@@ -290,7 +290,7 @@ func (c *Collection[T]) Delete(ctx context.Context) (*mongo.DeleteResult, error)
 // DeleteOne 删除单个文档
 func (c *Collection[T]) DeleteOne(ctx context.Context) (*mongo.DeleteResult, error) {
 	var r tmorm.MiddlewareFunc = func(mctx *tmorm.MiddleCtx, next func(m *tmorm.MiddleCtx)) {
-		var filter bson.D
+		var filter bson.D = bson.D{}
 		if mctx.Operation != nil {
 			filter = mctx.Operation.GetBsonD()
 		}
