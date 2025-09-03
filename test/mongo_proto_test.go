@@ -3,12 +3,12 @@ package test
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"testing"
-	"tm_orm/finder"
 )
 
 // 端到端测试finder
@@ -17,12 +17,10 @@ var MongoClient *mongo.Client
 
 func TestMongoPro(t *testing.T) {
 	ConnectMongo()
-	fd := &finder.Finder[TestUser]{}
 	tq := &Tquery{}
 
 	type tcase struct {
-		name   string
-		finder *finder.Finder[TestUser]
+		name string
 
 		data any
 
@@ -34,8 +32,7 @@ func TestMongoPro(t *testing.T) {
 
 	testCases := []tcase{
 		{
-			name:   "测试mongo协议_and",
-			finder: fd,
+			name: "测试mongo协议_and",
 			data: &TestUser{
 				ID:   primitive.ObjectID([12]byte{1, 2, 3, 4, 5}),
 				Name: "sean",
@@ -90,8 +87,7 @@ func TestMongoPro(t *testing.T) {
 			},
 		},
 		{
-			name:   "测试mongo协议_and_2",
-			finder: fd,
+			name: "测试mongo协议_and_2",
 			data: &TestUser{
 				ID:   primitive.ObjectID([12]byte{1, 2, 3, 4, 5}),
 				Name: "sean",
@@ -111,7 +107,7 @@ func TestMongoPro(t *testing.T) {
 				l, err := MongoClient.Database("mytest").Collection("db_test").Find(
 					context.Background(),
 					bson.D{{"$and", bson.A{
-						bson.D{{"$gte", bson.A{"$age", 10}}},
+						bson.D{{"age", bson.A{"$gte", 10}}},
 					}}}, // 有数据
 				)
 				if err != nil {
@@ -128,8 +124,7 @@ func TestMongoPro(t *testing.T) {
 			},
 		},
 		{
-			name:   "测试mongo协议_and与or嵌套",
-			finder: fd,
+			name: "测试mongo协议_and与or嵌套",
 			data: &TestUser{
 				ID:   primitive.ObjectID([12]byte{1, 2, 3, 4, 5}),
 				Name: "sean",
@@ -173,8 +168,7 @@ func TestMongoPro(t *testing.T) {
 			},
 		},
 		{
-			name:   "测试mongo协议_expr",
-			finder: fd,
+			name: "测试mongo协议_expr",
 			data: &TestUser{
 				ID:   primitive.ObjectID([12]byte{1, 2, 3, 4, 5}),
 				Name: "sean",
@@ -212,8 +206,7 @@ func TestMongoPro(t *testing.T) {
 			},
 		},
 		{
-			name:   "测试mongo aggregate",
-			finder: fd,
+			name: "测试mongo aggregate",
 			data: &TestUser{
 				ID:   primitive.ObjectID([12]byte{1, 2, 3, 4, 5}),
 				Name: "sean",
@@ -230,15 +223,21 @@ func TestMongoPro(t *testing.T) {
 					bson.M{"_id": data.ID})
 			},
 			check: func(tc *tcase) {
-
-				MongoClient.Database("").Collection("")
-
-				l, err := MongoClient.Database("mytest").Collection("db_test").Aggregate(
-					context.Background(),
-					bson.D{{Key: "$expr", Value: bson.D{{
+				pipeline := []bson.M{
+					{"$match": bson.D{{Key: "$expr", Value: bson.D{{
 						Key:   "$in",
 						Value: bson.A{"$name", []any{"sean", "jean", "mike"}}}},
+					}}},
+					{"$group": bson.M{
+						"_id":    "$_id",
+						"count":  bson.M{"$sum": 1},
+						"avgAge": bson.M{"$avg": "$age"},
 					}},
+					{"$sort": bson.M{"count": -1}},
+				}
+				l, err := MongoClient.Database("mytest").Collection("db_test").Aggregate(
+					context.Background(),
+					pipeline,
 				)
 				if err != nil {
 					panic(err)
@@ -261,9 +260,9 @@ func TestMongoPro(t *testing.T) {
 				tc.before(&tc)
 			}
 			tc.check(&tc)
-			//if tc.after != nil {
-			//	tc.after(&tc)
-			//}
+			if tc.after != nil {
+				tc.after(&tc)
+			}
 		})
 	}
 

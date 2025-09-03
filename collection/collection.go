@@ -3,6 +3,7 @@ package collection
 import (
 	"context"
 	tmorm "tm_orm"
+	"tm_orm/expression"
 	"tm_orm/impl"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -29,12 +30,68 @@ func NewCollection[T any](cli *tmorm.ORMClient, db string, collectionName string
 	}
 }
 
-// Where 添加查询条件
+// Where 添加查询条件 - 支持基础字段条件
 func (c *Collection[T]) Where(field string) *CollectionFieldCondition[T] {
 	return &CollectionFieldCondition[T]{
 		collection: c,
 		field:      field,
 	}
+}
+
+// WhereExpr 使用表达式构建复杂查询条件
+func (c *Collection[T]) WhereExpr(expr *expression.Expression) *Collection[T] {
+	query := &ExpressionQuery{data: expr.Build()}
+	return c.Filter(query)
+}
+
+// Expr 创建新的表达式构建器并返回字段表达式
+func (c *Collection[T]) Expr(field string) *CollectionExpressionBuilder[T] {
+	return &CollectionExpressionBuilder[T]{
+		collection: c,
+		expr:       expression.NewExpression(),
+		field:      field,
+	}
+}
+
+// ExpressionQuery 表达式查询包装器
+type ExpressionQuery struct {
+	data bson.M
+}
+
+// GetBsonD 实现IBsonQuery接口
+func (q *ExpressionQuery) GetBsonD() bson.D {
+	var result bson.D
+	for k, v := range q.data {
+		result = append(result, bson.E{Key: k, Value: v})
+	}
+	return result
+}
+
+// CollectionExpressionBuilder 集合表达式构建器
+type CollectionExpressionBuilder[T any] struct {
+	collection *Collection[T]
+	expr       *expression.Expression
+	field      string
+}
+
+// 便捷的表达式构建函数
+
+// And 创建AND表达式组合
+func And[T any](c *Collection[T], expressions ...*expression.Expression) *Collection[T] {
+	combined := expression.And(expressions...)
+	return c.WhereExpr(combined)
+}
+
+// Or 创建OR表达式组合
+func Or[T any](c *Collection[T], expressions ...*expression.Expression) *Collection[T] {
+	combined := expression.Or(expressions...)
+	return c.WhereExpr(combined)
+}
+
+// Not 创建NOT表达式
+func Not[T any](c *Collection[T], expr *expression.Expression) *Collection[T] {
+	negated := expression.Not(expr)
+	return c.WhereExpr(negated)
 }
 
 // Filter 使用查询构建器设置过滤条件

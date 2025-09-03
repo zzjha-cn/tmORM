@@ -6,200 +6,96 @@ import (
 	"testing"
 	"time"
 	tmorm "tm_orm"
-	"tm_orm/aggregator"
-	"tm_orm/finder"
-	"tm_orm/impl"
-	"tm_orm/middleware"
-	"tm_orm/query"
-	"tm_orm/updater"
+	"tm_orm/collection"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 var (
-	dbName = ""
-	coll   = ""
+	dbName = "mytest"
+	coll   = "db_test"
 )
 
-func getDB() *tmorm.MDB {
-	return &tmorm.MDB{}
-}
+var client, _ = tmorm.NewORMClient(nil)
 
 func TestUserType(t *testing.T) {
-	// 常规使用
-
-	// - 获取
 	ctx := context.Background()
-	sess := getDB().Sess(ctx, dbName, coll)
+	// 使用新的collection API
+	collection := collection.NewCollection[TestUser](client, dbName, coll)
 
-	// - 查找
-	q := query.Query{}
-	u, _ := (&finder.Finder[TestUser]{}).Find(sess, q)
-	fmt.Println(u)
+	// 基本查询
+	users, err := collection.Find(ctx)
+	if err != nil {
+		t.Errorf("Find error: %v", err)
+	}
+	fmt.Printf("Found %d users\n", len(users))
 
-	// - 构造
-	// bsonD{{"",bsonD{{"$gte",1}}}}
-	q1 := query.Query{}
-	q1.Builder().KV("", TestUser{})
-	q1.Builder().K("").Gte(1)
-	q1.Builder().K("").In(1, 2, 3, 4)
+	// 条件查询
+	adults, err := collection.Where("age").Gte(18).Find(ctx)
+	if err != nil {
+		t.Errorf("Where Find error: %v", err)
+	}
+	fmt.Printf("Found %d adults\n", len(adults))
 
-	// - and
-	// bsonD{{"$and", bsonD{{"age" , bsonD{{"$gte",1}} } ,  }}}
-	q1.Builder().And(
-		func(a *query.QueryAnd) query.Builder {
-			return a.
-				Expr(func(m query.MExpr) query.Builder {
-					return m.Or(m.C().Eq(m.Fd("name"), m.Val("sean2")))
-				}).
-				Expr(func(m query.MExpr) query.Builder {
-					return m.Gt(m.Fd("salary"), m.Val(1000))
-				})
-		},
-	)
+	// 查找单个文档
+	user, err := collection.Where("name").Eq("John").FindOne(ctx)
+	if err != nil {
+		t.Logf("FindOne error: %v", err)
+	} else {
+		fmt.Printf("Found user: %+v\n", user)
+	}
 
-	//- expr
-	// bson.D{{ "$expr" , bson.D{{ "$gte" , bson.A{"$age", 33} }} }}
-	//q1.Builder().Expr().AggCmd().Gte(query.F("age"), 33)
-	q1.Builder().Expr(func(m query.MExpr) query.Builder {
-		return m.Lte(m.Fd("age"), m.Val(33))
-	})
-	q1.Builder().Expr(func(m query.MExpr) query.Builder {
-		return m.Gt(
-			m.C().Multi(m.Fd("age"), m.Val(10)),
-			m.Val(50),
-		)
-	})
-	q1.Builder().Expr(func(m query.MExpr) query.Builder {
-		return m.And(
-			m.C().Eq(m.Fd("name"), m.Val("sean")),
-			m.Or(
-				m.C().Add(m.Fd("xxx"), m.Val(1)),
-			),
-		)
-	})
-	fmt.Println(u)
+	// 插入文档
+	newUser := &TestUser{
+		ID:         primitive.NewObjectID(),
+		Name:       "Alice",
+		Age:        25,
+		Department: "Engineering",
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	}
+	result, err := collection.Insert(ctx, newUser)
+	if err != nil {
+		t.Errorf("Insert error: %v", err)
+	} else {
+		fmt.Printf("Inserted user with ID: %v\n", result.InsertedID)
+	}
 
-	// - update
-	up := &updater.MUpdater[TestUser]{}
-	q2 := updater.NewReplaceBuilder[TestUser]()
-	q2.SetGetIdFunc(func() (any, bool) {
-		return 1, true
-	})
-	q2.C().SetObj(&TestUser{Name: "s1"}, false)
-	_, _ = up.SetFilter(q1).UpdateOne(sess, q2)
-	_, _ = up.SetFilter(q1).UpdateMany(sess, q2)
+	// 更新文档
+	updateResult, err := collection.Where("name").Eq("Alice").Set("age", 26).Update(ctx)
+	if err != nil {
+		t.Errorf("Update error: %v", err)
+	} else {
+		fmt.Printf("Updated %d documents\n", updateResult.ModifiedCount)
+	}
 
-	// - update replace
-	_, _ = up.SetFilter(q1).ReplaceOne(sess, updater.NewBaseSetBuilder(&struct {
-		Name  string `bson:"name"`
-		Age   int    `bson:"age"`
-		Score int    `bson:"-"`
-	}{}))
+	// 删除文档
+	deleteResult, err := collection.Where("name").Eq("Alice").Delete(ctx)
+	if err != nil {
+		t.Errorf("Delete error: %v", err)
+	} else {
+		fmt.Printf("Deleted %d documents\n", deleteResult.DeletedCount)
+	}
 
-	// - update set
-	q2.C().SetObj(&TestUser{}, true)
-	q2.C().SetObj(&TestUser{}, false)
-	q2.C().Set("", "").Unset("", "").Rename("nn", "n2")
-	q2.C().Set("", "").AddToSet("letters", []int{1, 2, 3}).Min("m", 3)
-	up.
-		CommonFilter(func(q query.Query) impl.IBsonQuery {
-			return q.Builder().K("age").Lte(13).ToQuery()
-		}).
-		UpsertOne(sess, q2)
+	// 统计文档数量
+	count, err := collection.Count(ctx)
+	if err != nil {
+		t.Errorf("Count error: %v", err)
+	} else {
+		fmt.Printf("Total documents: %d\n", count)
+	}
 
-	// - middleware
-	md := tmorm.NewMiddleChainAdapt()
-	md.Use( // DB层面的中间件
-		func(next tmorm.MHandlerFunc) tmorm.MHandlerFunc {
-			return func(mctx *tmorm.MiddleCtx) tmorm.MResult {
-				println("前置")
-				return next(mctx)
-			}
-		},
-		func(next tmorm.MHandlerFunc) tmorm.MHandlerFunc {
-			return func(mctx *tmorm.MiddleCtx) tmorm.MResult {
-				r := next(mctx)
-				println("后置")
-				return r
-			}
-		},
-		middleware.SLowQueryMiddleware{
-			Threshold: 500, // ms
-		}.Build(),
-	)
-	ctx1 := context.Background()
-	db := getDB().SetMiddleware(md)
-	sess1 := db.Sess(ctx1, dbName, coll, func(next tmorm.MHandlerFunc) tmorm.MHandlerFunc {
-		return func(mctx *tmorm.MiddleCtx) tmorm.MResult {
-			println("sess 前置，会话层面的中间件")
-			return next(mctx)
-		}
-	})
-	(&finder.Finder[TestUser]{}).Find(sess1, q1)
-
-	// - aggregate
-	ag := &aggregator.Aggregator[TestUser]{}
-	// 尝试1
-	ag.Pipe().
-		Match(func(m *query.MatchCmd) query.Builder {
-			return m.
-				K("year").Gte(5).
-				Or(func(a *query.QueryOr) query.Builder {
-					return a.K("age").Lte(35).
-						K("salary").Gte(50000)
-				})
-		}).
-		Group(func(g *query.GroupCmd) query.Builder {
-			g.IdWithField("year").
-				Key("y1").Sum(g.AnyVal(1)).
-				Key("y2").Avg()
-			return g.Build()
-		}).
-		Sort("name", "age").
-		Project(true, "name", "age", "salary")
-
-	// 尝试2, 多级结构作为_id
-	ag.Pipe().
-		Group(func(group *query.GroupCmd) query.Builder {
-			// - {_id: null}
-			gb := group.Id(nil)
-			// - {_id: { $year: "$order_date"}}
-			gb.Id(
-				gb.IdBuilder().Year(gb.ToFd("order_date")),
-			)
-			// - {_id : { co1: "$customId", status:"$status" }}
-			gb.Id(
-				gb.IdBuilder().
-					SetKeyField("co1", "customId").
-					SetKeyField("status", "status"),
-			)
-			// - { _id : {
-			//		y1: { $year :"$order_date"},
-			//		m1: { $month: "$order_date"},
-			//		region:"$region",
-			//	}}
-			gb.Id(
-				gb.IdBuilder().
-					Key("y1").Year(gb.ToFd("order_date")).
-					Key("m1").Month(gb.ToFd("order_date")).
-					SetKeyField("region", "region"),
-			)
-			return gb.Build()
-		})
-
-	// 尝试3 {_id: null, totalSales: {$sum : {$multi: ["$s1" , "$s2"]}}}
-	ag.Pipe().
-		Group(func(group *query.GroupCmd) query.Builder {
-			gb := group.Id(nil).
-				Key("totalSales").Sum(
-				group.AggC().Multi(
-					group.ToFd("s1"), group.ToFd("s2"),
-				))
-			return gb.Build()
-		})
-
+	// 复杂查询示例
+	seniorEngineers, err := collection.
+		Where("age").Gte(30).
+		Where("department").Eq("Engineering").
+		Find(ctx)
+	if err != nil {
+		t.Errorf("Complex query error: %v", err)
+	} else {
+		fmt.Printf("Found %d senior engineers\n", len(seniorEngineers))
+	}
 }
 
 type (

@@ -148,13 +148,13 @@ func (f *FieldCondition) Lte(value any) *SimpleQueryBuilder {
 
 // In 包含条件
 func (f *FieldCondition) In(values ...any) *SimpleQueryBuilder {
-	f.builder.addCondition(f.field, tmorm.InOp, values)
+	f.builder.addCondition(f.field, tmorm.InOp, any2BsonA(values...))
 	return f.builder
 }
 
 // NotIn 不包含条件
 func (f *FieldCondition) NotIn(values ...any) *SimpleQueryBuilder {
-	f.builder.addCondition(f.field, tmorm.NinOp, values)
+	f.builder.addCondition(f.field, tmorm.NinOp, any2BsonA(values...))
 	return f.builder
 }
 
