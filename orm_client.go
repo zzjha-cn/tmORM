@@ -107,7 +107,7 @@ func (c *ORMClient) Transaction(ctx context.Context, fn func(mongo.SessionContex
 	defer session.EndSession(ctx)
 
 	return mongo.WithSession(ctx, session, func(sc mongo.SessionContext) error {
-		_, err := session.WithTransaction(sc, func(sc mongo.SessionContext) (interface{}, error) {
+		_, err := session.WithTransaction(sc, func(sc mongo.SessionContext) (any, error) {
 			return nil, fn(sc)
 		}, opts...)
 		return err

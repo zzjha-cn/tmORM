@@ -8,60 +8,60 @@ import (
 
 // MatchOperators 匹配操作符
 type MatchOperators struct {
-	aggregator *Aggregator[interface{}]
+	aggregator *Aggregator[any]
 }
 
 // NewMatchOperators 创建匹配操作符
 func (a *Aggregator[T]) NewMatchOperators() *MatchOperators {
 	return &MatchOperators{
-		aggregator: (*Aggregator[interface{}])(a),
+		aggregator: (*Aggregator[any])(a),
 	}
 }
 
 // Eq 等于
-func (m *MatchOperators) Eq(field string, value interface{}) *MatchOperators {
+func (m *MatchOperators) Eq(field string, value any) *MatchOperators {
 	m.aggregator.Match(bson.M{field: value})
 	return m
 }
 
 // Ne 不等于
-func (m *MatchOperators) Ne(field string, value interface{}) *MatchOperators {
+func (m *MatchOperators) Ne(field string, value any) *MatchOperators {
 	m.aggregator.Match(bson.M{field: bson.M{"$ne": value}})
 	return m
 }
 
 // Gt 大于
-func (m *MatchOperators) Gt(field string, value interface{}) *MatchOperators {
+func (m *MatchOperators) Gt(field string, value any) *MatchOperators {
 	m.aggregator.Match(bson.M{field: bson.M{"$gt": value}})
 	return m
 }
 
 // Gte 大于等于
-func (m *MatchOperators) Gte(field string, value interface{}) *MatchOperators {
+func (m *MatchOperators) Gte(field string, value any) *MatchOperators {
 	m.aggregator.Match(bson.M{field: bson.M{"$gte": value}})
 	return m
 }
 
 // Lt 小于
-func (m *MatchOperators) Lt(field string, value interface{}) *MatchOperators {
+func (m *MatchOperators) Lt(field string, value any) *MatchOperators {
 	m.aggregator.Match(bson.M{field: bson.M{"$lt": value}})
 	return m
 }
 
 // Lte 小于等于
-func (m *MatchOperators) Lte(field string, value interface{}) *MatchOperators {
+func (m *MatchOperators) Lte(field string, value any) *MatchOperators {
 	m.aggregator.Match(bson.M{field: bson.M{"$lte": value}})
 	return m
 }
 
 // In 在数组中
-func (m *MatchOperators) In(field string, values []interface{}) *MatchOperators {
+func (m *MatchOperators) In(field string, values []any) *MatchOperators {
 	m.aggregator.Match(bson.M{field: bson.M{"$in": values}})
 	return m
 }
 
 // NotIn 不在数组中
-func (m *MatchOperators) NotIn(field string, values []interface{}) *MatchOperators {
+func (m *MatchOperators) NotIn(field string, values []any) *MatchOperators {
 	m.aggregator.Match(bson.M{field: bson.M{"$nin": values}})
 	return m
 }
@@ -95,7 +95,7 @@ func (m *MatchOperators) Type(field string, bsonType int) *MatchOperators {
 }
 
 // All 数组包含所有元素
-func (m *MatchOperators) All(field string, values []interface{}) *MatchOperators {
+func (m *MatchOperators) All(field string, values []any) *MatchOperators {
 	m.aggregator.Match(bson.M{field: bson.M{"$all": values}})
 	return m
 }
@@ -190,20 +190,20 @@ func (m *MatchOperators) LastNDays(field string, days int) *MatchOperators {
 }
 
 // Build 构建聚合器
-func (m *MatchOperators) Build() *Aggregator[interface{}] {
+func (m *MatchOperators) Build() *Aggregator[any] {
 	return m.aggregator
 }
 
 // ProjectOperators 投影操作符
 type ProjectOperators struct {
-	aggregator *Aggregator[interface{}]
+	aggregator *Aggregator[any]
 	fields     bson.M
 }
 
 // NewProjectOperators 创建投影操作符
 func (a *Aggregator[T]) NewProjectOperators() *ProjectOperators {
 	return &ProjectOperators{
-		aggregator: (*Aggregator[interface{}])(a),
+		aggregator: (*Aggregator[any])(a),
 		fields:     make(bson.M),
 	}
 }
@@ -237,20 +237,20 @@ func (p *ProjectOperators) Rename(oldField, newField string) *ProjectOperators {
 }
 
 // AddField 添加计算字段
-func (p *ProjectOperators) AddField(field string, expression interface{}) *ProjectOperators {
+func (p *ProjectOperators) AddField(field string, expression any) *ProjectOperators {
 	p.fields[field] = expression
 	return p
 }
 
 // AddConstant 添加常量字段
-func (p *ProjectOperators) AddConstant(field string, value interface{}) *ProjectOperators {
+func (p *ProjectOperators) AddConstant(field string, value any) *ProjectOperators {
 	p.fields[field] = bson.M{"$literal": value}
 	return p
 }
 
 // Concat 字符串连接
 func (p *ProjectOperators) Concat(field string, fields ...string) *ProjectOperators {
-	args := make([]interface{}, len(fields))
+	args := make([]any, len(fields))
 	for i, f := range fields {
 		args[i] = "$" + f
 	}
@@ -260,7 +260,7 @@ func (p *ProjectOperators) Concat(field string, fields ...string) *ProjectOperat
 
 // Substr 子字符串
 func (p *ProjectOperators) Substr(field, sourceField string, start, length int) *ProjectOperators {
-	p.fields[field] = bson.M{"$substr": []interface{}{"$" + sourceField, start, length}}
+	p.fields[field] = bson.M{"$substr": []any{"$" + sourceField, start, length}}
 	return p
 }
 
@@ -315,7 +315,7 @@ func (p *ProjectOperators) Hour(field, sourceField string) *ProjectOperators {
 
 // Add 数学加法
 func (p *ProjectOperators) Add(field string, fields ...string) *ProjectOperators {
-	args := make([]interface{}, len(fields))
+	args := make([]any, len(fields))
 	for i, f := range fields {
 		args[i] = "$" + f
 	}
@@ -325,13 +325,13 @@ func (p *ProjectOperators) Add(field string, fields ...string) *ProjectOperators
 
 // Subtract 数学减法
 func (p *ProjectOperators) Subtract(field, field1, field2 string) *ProjectOperators {
-	p.fields[field] = bson.M{"$subtract": []interface{}{"$" + field1, "$" + field2}}
+	p.fields[field] = bson.M{"$subtract": []any{"$" + field1, "$" + field2}}
 	return p
 }
 
 // Multiply 数学乘法
 func (p *ProjectOperators) Multiply(field string, fields ...string) *ProjectOperators {
-	args := make([]interface{}, len(fields))
+	args := make([]any, len(fields))
 	for i, f := range fields {
 		args[i] = "$" + f
 	}
@@ -341,19 +341,19 @@ func (p *ProjectOperators) Multiply(field string, fields ...string) *ProjectOper
 
 // Divide 数学除法
 func (p *ProjectOperators) Divide(field, field1, field2 string) *ProjectOperators {
-	p.fields[field] = bson.M{"$divide": []interface{}{"$" + field1, "$" + field2}}
+	p.fields[field] = bson.M{"$divide": []any{"$" + field1, "$" + field2}}
 	return p
 }
 
 // Cond 条件表达式
-func (p *ProjectOperators) Cond(field string, condition, ifTrue, ifFalse interface{}) *ProjectOperators {
-	p.fields[field] = bson.M{"$cond": []interface{}{condition, ifTrue, ifFalse}}
+func (p *ProjectOperators) Cond(field string, condition, ifTrue, ifFalse any) *ProjectOperators {
+	p.fields[field] = bson.M{"$cond": []any{condition, ifTrue, ifFalse}}
 	return p
 }
 
 // IfNull 空值处理
-func (p *ProjectOperators) IfNull(field, sourceField string, replacement interface{}) *ProjectOperators {
-	p.fields[field] = bson.M{"$ifNull": []interface{}{"$" + sourceField, replacement}}
+func (p *ProjectOperators) IfNull(field, sourceField string, replacement any) *ProjectOperators {
+	p.fields[field] = bson.M{"$ifNull": []any{"$" + sourceField, replacement}}
 	return p
 }
 
@@ -371,7 +371,7 @@ func (p *ProjectOperators) Type(field, sourceField string) *ProjectOperators {
 
 // ArrayElemAt 数组元素
 func (p *ProjectOperators) ArrayElemAt(field, sourceField string, index int) *ProjectOperators {
-	p.fields[field] = bson.M{"$arrayElemAt": []interface{}{"$" + sourceField, index}}
+	p.fields[field] = bson.M{"$arrayElemAt": []any{"$" + sourceField, index}}
 	return p
 }
 
@@ -387,25 +387,25 @@ func (p *ProjectOperators) Last(field, sourceField string) *ProjectOperators {
 
 // Slice 数组切片
 func (p *ProjectOperators) Slice(field, sourceField string, start, limit int) *ProjectOperators {
-	p.fields[field] = bson.M{"$slice": []interface{}{"$" + sourceField, start, limit}}
+	p.fields[field] = bson.M{"$slice": []any{"$" + sourceField, start, limit}}
 	return p
 }
 
 // Build 构建投影
-func (p *ProjectOperators) Build() *Aggregator[interface{}] {
+func (p *ProjectOperators) Build() *Aggregator[any] {
 	return p.aggregator.Project(p.fields)
 }
 
 // SortOperators 排序操作符
 type SortOperators struct {
-	aggregator *Aggregator[interface{}]
+	aggregator *Aggregator[any]
 	sorts      bson.D
 }
 
 // NewSortOperators 创建排序操作符
 func (a *Aggregator[T]) NewSortOperators() *SortOperators {
 	return &SortOperators{
-		aggregator: (*Aggregator[interface{}])(a),
+		aggregator: (*Aggregator[any])(a),
 		sorts:      make(bson.D, 0),
 	}
 }
@@ -439,19 +439,19 @@ func (s *SortOperators) TextScore() *SortOperators {
 }
 
 // Build 构建排序
-func (s *SortOperators) Build() *Aggregator[interface{}] {
+func (s *SortOperators) Build() *Aggregator[any] {
 	return s.aggregator.Sort(s.sorts)
 }
 
 // LookupOperators 关联查询操作符
 type LookupOperators struct {
-	aggregator *Aggregator[interface{}]
+	aggregator *Aggregator[any]
 }
 
 // NewLookupOperators 创建关联查询操作符
 func (a *Aggregator[T]) NewLookupOperators() *LookupOperators {
 	return &LookupOperators{
-		aggregator: (*Aggregator[interface{}])(a),
+		aggregator: (*Aggregator[any])(a),
 	}
 }
 
@@ -478,19 +478,19 @@ func (l *LookupOperators) WithPipeline(from, as string, let bson.M, pipeline []b
 }
 
 // Build 构建关联查询
-func (l *LookupOperators) Build() *Aggregator[interface{}] {
+func (l *LookupOperators) Build() *Aggregator[any] {
 	return l.aggregator
 }
 
 // UnwindOperators 展开操作符
 type UnwindOperators struct {
-	aggregator *Aggregator[interface{}]
+	aggregator *Aggregator[any]
 }
 
 // NewUnwindOperators 创建展开操作符
 func (a *Aggregator[T]) NewUnwindOperators() *UnwindOperators {
 	return &UnwindOperators{
-		aggregator: (*Aggregator[interface{}])(a),
+		aggregator: (*Aggregator[any])(a),
 	}
 }
 
@@ -514,7 +514,7 @@ func (u *UnwindOperators) WithOptions(path string, preserveNullAndEmptyArrays bo
 }
 
 // Build 构建展开
-func (u *UnwindOperators) Build() *Aggregator[interface{}] {
+func (u *UnwindOperators) Build() *Aggregator[any] {
 	return u.aggregator
 }
 
@@ -573,7 +573,7 @@ func (a *Aggregator[T]) Out(collection string) *Aggregator[T] {
 }
 
 // Merge 合并到集合
-func (a *Aggregator[T]) Merge(into interface{}, whenMatched, whenNotMatched string) *Aggregator[T] {
+func (a *Aggregator[T]) Merge(into any, whenMatched, whenNotMatched string) *Aggregator[T] {
 	mergeStage := bson.M{"into": into}
 	if whenMatched != "" {
 		mergeStage["whenMatched"] = whenMatched
@@ -585,12 +585,12 @@ func (a *Aggregator[T]) Merge(into interface{}, whenMatched, whenNotMatched stri
 }
 
 // Redact 文档过滤
-func (a *Aggregator[T]) Redact(expression interface{}) *Aggregator[T] {
+func (a *Aggregator[T]) Redact(expression any) *Aggregator[T] {
 	return a.AddStage(bson.M{"$redact": expression})
 }
 
 // GeoNear 地理位置查询
-func (a *Aggregator[T]) GeoNear(near interface{}, distanceField string, options bson.M) *Aggregator[T] {
+func (a *Aggregator[T]) GeoNear(near any, distanceField string, options bson.M) *Aggregator[T] {
 	geoNear := bson.M{
 		"near":          near,
 		"distanceField": distanceField,
@@ -644,7 +644,7 @@ func (a *Aggregator[T]) TextSearch(search string, language ...string) *Aggregato
 // 数据类型转换
 
 // Convert 类型转换
-func (a *Aggregator[T]) Convert(input interface{}, to string, onError, onNull interface{}) *AggExpr {
+func (a *Aggregator[T]) Convert(input any, to string, onError, onNull any) *AggExpr {
 	convert := bson.M{
 		"input": input,
 		"to":    to,
@@ -659,21 +659,21 @@ func (a *Aggregator[T]) Convert(input interface{}, to string, onError, onNull in
 }
 
 // ToBool 转换为布尔值
-func (a *Aggregator[T]) ToBool(input interface{}) *AggExpr {
+func (a *Aggregator[T]) ToBool(input any) *AggExpr {
 	return &AggExpr{expr: bson.M{"$toBool": input}}
 }
 
 // ToDecimal 转换为十进制
-func (a *Aggregator[T]) ToDecimal(input interface{}) *AggExpr {
+func (a *Aggregator[T]) ToDecimal(input any) *AggExpr {
 	return &AggExpr{expr: bson.M{"$toDecimal": input}}
 }
 
 // ToLong 转换为长整型
-func (a *Aggregator[T]) ToLong(input interface{}) *AggExpr {
+func (a *Aggregator[T]) ToLong(input any) *AggExpr {
 	return &AggExpr{expr: bson.M{"$toLong": input}}
 }
 
 // ToObjectId 转换为ObjectId
-func (a *Aggregator[T]) ToObjectId(input interface{}) *AggExpr {
+func (a *Aggregator[T]) ToObjectId(input any) *AggExpr {
 	return &AggExpr{expr: bson.M{"$toObjectId": input}}
 }

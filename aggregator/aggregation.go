@@ -59,7 +59,7 @@ func (a *Aggregator[T]) MatchByExpression(expr *expression.Expression) *Aggregat
 }
 
 // Group 分组阶段
-func (a *Aggregator[T]) Group(id interface{}, fields bson.M) *Aggregator[T] {
+func (a *Aggregator[T]) Group(id any, fields bson.M) *Aggregator[T] {
 	groupStage := bson.M{"_id": id}
 	for k, v := range fields {
 		groupStage[k] = v
@@ -149,7 +149,7 @@ func (a *Aggregator[T]) AddFields(fields bson.M) *Aggregator[T] {
 }
 
 // ReplaceRoot 替换根文档
-func (a *Aggregator[T]) ReplaceRoot(newRoot interface{}) *Aggregator[T] {
+func (a *Aggregator[T]) ReplaceRoot(newRoot any) *Aggregator[T] {
 	return a.AddStage(bson.M{"$replaceRoot": bson.M{"newRoot": newRoot}})
 }
 
@@ -159,7 +159,7 @@ func (a *Aggregator[T]) Facet(facets bson.M) *Aggregator[T] {
 }
 
 // Bucket 分桶
-func (a *Aggregator[T]) Bucket(groupBy interface{}, boundaries []interface{}, defaultBucket interface{}, output bson.M) *Aggregator[T] {
+func (a *Aggregator[T]) Bucket(groupBy any, boundaries []any, defaultBucket any, output bson.M) *Aggregator[T] {
 	bucketStage := bson.M{
 		"groupBy":    groupBy,
 		"boundaries": boundaries,
@@ -248,15 +248,15 @@ func (a *Aggregator[T]) Count(field string) *Aggregator[T] {
 
 // GroupBuilder 分组构建器
 type GroupBuilder struct {
-	aggregator *Aggregator[interface{}]
-	groupID    interface{}
+	aggregator *Aggregator[any]
+	groupID    any
 	fields     bson.M
 }
 
 // NewGroupBuilder 创建分组构建器
-func (a *Aggregator[T]) NewGroupBuilder(id interface{}) *GroupBuilder {
+func (a *Aggregator[T]) NewGroupBuilder(id any) *GroupBuilder {
 	return &GroupBuilder{
-		aggregator: (*Aggregator[interface{}])(a),
+		aggregator: (*Aggregator[any])(a),
 		groupID:    id,
 		fields:     make(bson.M),
 	}
@@ -269,7 +269,7 @@ func (gb *GroupBuilder) Sum(field, sourceField string) *GroupBuilder {
 }
 
 // SumValue 求和（使用固定值）
-func (gb *GroupBuilder) SumValue(field string, value interface{}) *GroupBuilder {
+func (gb *GroupBuilder) SumValue(field string, value any) *GroupBuilder {
 	gb.fields[field] = bson.M{"$sum": value}
 	return gb
 }
@@ -323,7 +323,7 @@ func (gb *GroupBuilder) AddToSet(field, sourceField string) *GroupBuilder {
 }
 
 // Build 构建分组阶段
-func (gb *GroupBuilder) Build() *Aggregator[interface{}] {
+func (gb *GroupBuilder) Build() *Aggregator[any] {
 	return gb.aggregator.Group(gb.groupID, gb.fields)
 }
 
@@ -400,7 +400,7 @@ func (a *Aggregator[T]) PaginateWithCount(ctx context.Context, page, pageSize in
 	copy(countPipeline, a.pipeline)
 
 	// 使用facet同时执行两个管道
-	facetAgg := NewAggregator[interface{}](a.client, a.DBName, a.CollectionName, a.msList...)
+	facetAgg := NewAggregator[any](a.client, a.DBName, a.CollectionName, a.msList...)
 	for _, stage := range a.pipeline {
 		facetAgg.AddStage(stage)
 	}
@@ -456,7 +456,7 @@ type PaginationResult[T any] struct {
 
 // AggExpr 聚合表达式
 type AggExpr struct {
-	expr interface{}
+	expr any
 }
 
 // Field 字段引用
@@ -465,43 +465,43 @@ func AggField(name string) *AggExpr {
 }
 
 // Literal 字面值
-func AggLiteral(value interface{}) *AggExpr {
+func AggLiteral(value any) *AggExpr {
 	return &AggExpr{expr: value}
 }
 
 // Add 加法
 func (e *AggExpr) Add(other *AggExpr) *AggExpr {
-	return &AggExpr{expr: bson.M{"$add": []interface{}{e.expr, other.expr}}}
+	return &AggExpr{expr: bson.M{"$add": []any{e.expr, other.expr}}}
 }
 
 // Subtract 减法
 func (e *AggExpr) Subtract(other *AggExpr) *AggExpr {
-	return &AggExpr{expr: bson.M{"$subtract": []interface{}{e.expr, other.expr}}}
+	return &AggExpr{expr: bson.M{"$subtract": []any{e.expr, other.expr}}}
 }
 
 // Multiply 乘法
 func (e *AggExpr) Multiply(other *AggExpr) *AggExpr {
-	return &AggExpr{expr: bson.M{"$multiply": []interface{}{e.expr, other.expr}}}
+	return &AggExpr{expr: bson.M{"$multiply": []any{e.expr, other.expr}}}
 }
 
 // Divide 除法
 func (e *AggExpr) Divide(other *AggExpr) *AggExpr {
-	return &AggExpr{expr: bson.M{"$divide": []interface{}{e.expr, other.expr}}}
+	return &AggExpr{expr: bson.M{"$divide": []any{e.expr, other.expr}}}
 }
 
 // Mod 取模
 func (e *AggExpr) Mod(other *AggExpr) *AggExpr {
-	return &AggExpr{expr: bson.M{"$mod": []interface{}{e.expr, other.expr}}}
+	return &AggExpr{expr: bson.M{"$mod": []any{e.expr, other.expr}}}
 }
 
 // Cond 条件表达式
 func AggCond(condition, ifTrue, ifFalse *AggExpr) *AggExpr {
-	return &AggExpr{expr: bson.M{"$cond": []interface{}{condition.expr, ifTrue.expr, ifFalse.expr}}}
+	return &AggExpr{expr: bson.M{"$cond": []any{condition.expr, ifTrue.expr, ifFalse.expr}}}
 }
 
 // IfNull 空值处理
 func (e *AggExpr) IfNull(replacement *AggExpr) *AggExpr {
-	return &AggExpr{expr: bson.M{"$ifNull": []interface{}{e.expr, replacement.expr}}}
+	return &AggExpr{expr: bson.M{"$ifNull": []any{e.expr, replacement.expr}}}
 }
 
 // Size 数组大小
@@ -535,7 +535,7 @@ func (e *AggExpr) ToDate() *AggExpr {
 }
 
 // GetExpr 获取表达式
-func (e *AggExpr) GetExpr() interface{} {
+func (e *AggExpr) GetExpr() any {
 	return e.expr
 }
 
@@ -587,7 +587,7 @@ func (e *AggExpr) DateToString(format string, timezone ...string) *AggExpr {
 
 // Concat 字符串连接
 func AggConcat(exprs ...*AggExpr) *AggExpr {
-	args := make([]interface{}, len(exprs))
+	args := make([]any, len(exprs))
 	for i, expr := range exprs {
 		args[i] = expr.expr
 	}
@@ -596,7 +596,7 @@ func AggConcat(exprs ...*AggExpr) *AggExpr {
 
 // Substr 子字符串
 func (e *AggExpr) Substr(start, length int) *AggExpr {
-	return &AggExpr{expr: bson.M{"$substr": []interface{}{e.expr, start, length}}}
+	return &AggExpr{expr: bson.M{"$substr": []any{e.expr, start, length}}}
 }
 
 // ToLower 转小写

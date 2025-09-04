@@ -2,6 +2,7 @@ package collection
 
 import (
 	"go.mongodb.org/mongo-driver/bson"
+	"tm_orm/expression"
 )
 
 // CollectionExpressionBuilder 的所有表达式方法
@@ -166,4 +167,10 @@ func (e *CollectionExpressionBuilder[T]) Or(field string) *CollectionExpressionB
 		expr:       e.expr.Or(),
 		field:      field,
 	}
+}
+
+// Expr 使用聚合表达式查询
+func (e *CollectionExpressionBuilder[T]) Expr(aggExpr *expression.AggregationExpression) *Collection[T] {
+	expr := e.expr.AddCondition(bson.M{"$expr": aggExpr.GetExpr()})
+	return e.collection.WhereExpr(expr)
 }
