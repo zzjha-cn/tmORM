@@ -88,10 +88,9 @@ func Or[T any](c *Collection[T], expressions ...*expression.Expression) *Collect
 	return c.WhereExpr(combined)
 }
 
-// Not 创建NOT表达式
-func Not[T any](c *Collection[T], expr *expression.Expression) *Collection[T] {
-	negated := expression.Not(expr)
-	return c.WhereExpr(negated)
+func Nor[T any](c *Collection[T], expressions ...*expression.Expression) *Collection[T] {
+	combined := expression.Nor(expressions...)
+	return c.WhereExpr(combined)
 }
 
 // Filter 使用查询构建器设置过滤条件

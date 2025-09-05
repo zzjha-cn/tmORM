@@ -12,7 +12,8 @@ type SimpleQueryBuilder struct {
 	filters   []bson.E
 	orGroups  [][]bson.E
 	currentOr []bson.E
-	inOr      bool
+	inOr      bool // 是否在构建or
+	inNot     bool // 是否在构建not
 }
 
 // NewQuery 创建新的查询构建器
@@ -29,6 +30,14 @@ func (q *SimpleQueryBuilder) Where(field string) *FieldCondition {
 		builder: q,
 		field:   field,
 	}
+}
+func (q *SimpleQueryBuilder) WhereNot(field string) *FieldCondition {
+	f1 := &FieldCondition{
+		builder: q,
+		field:   field,
+	}
+	q.inNot = true
+	return f1
 }
 
 // Or 开始OR条件组
@@ -95,6 +104,11 @@ func (q *SimpleQueryBuilder) addCondition(field string, operator string, value a
 	condition := bson.E{
 		Key:   field,
 		Value: bson.D{{operator, value}},
+	}
+
+	if q.inNot {
+		// $not 比较特殊。{"age":{"$not":{"$lt":11}}} vs {"age":{"$gte":11}}
+		condition.Value = bson.D{{tmorm.NotOp, condition.Value}}
 	}
 
 	if q.inOr {
@@ -170,7 +184,6 @@ func (f *FieldCondition) Exists(exists bool) *SimpleQueryBuilder {
 	return f.builder
 }
 
-// SimpleQuery 简化的查询实现
 type SimpleQuery struct {
 	data bson.D
 }
