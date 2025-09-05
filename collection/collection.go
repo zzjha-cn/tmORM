@@ -234,7 +234,7 @@ func (c *Collection[T]) Insert(ctx context.Context, doc *T) (*mongo.InsertOneRes
 		next(mctx)
 	}
 
-	mctx := tmorm.NewMiddleContext(ctx, "InsertOne")
+	mctx := tmorm.NewMiddleContext(ctx, InsertOneMtd)
 	tmorm.Executor(mctx, c.combineChain(r))
 	res := mctx.Result
 	if res.Val != nil {
@@ -255,7 +255,7 @@ func (c *Collection[T]) InsertMany(ctx context.Context, docs []*T) (*mongo.Inser
 		next(mctx)
 	}
 
-	mctx := tmorm.NewMiddleContext(ctx, "InsertMany")
+	mctx := tmorm.NewMiddleContext(ctx, InsertManyMtd)
 	tmorm.Executor(mctx, c.combineChain(r))
 	res := mctx.Result
 	if res.Val != nil {
@@ -276,7 +276,7 @@ func (c *Collection[T]) Delete(ctx context.Context) (*mongo.DeleteResult, error)
 		next(mctx)
 	}
 
-	mctx := tmorm.NewMiddleContext(ctx, "DeleteMany")
+	mctx := tmorm.NewMiddleContext(ctx, DeleteManyMtd)
 	mctx.Operation = c.filter
 	tmorm.Executor(mctx, c.combineChain(r))
 	res := mctx.Result
@@ -298,7 +298,7 @@ func (c *Collection[T]) DeleteOne(ctx context.Context) (*mongo.DeleteResult, err
 		next(mctx)
 	}
 
-	mctx := tmorm.NewMiddleContext(ctx, "DeleteOne")
+	mctx := tmorm.NewMiddleContext(ctx, DeleteOneMtd)
 	mctx.Operation = c.filter
 	tmorm.Executor(mctx, c.combineChain(r))
 	res := mctx.Result

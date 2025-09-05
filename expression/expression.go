@@ -3,6 +3,7 @@ package expression
 import (
 	"regexp"
 	"time"
+	tmorm "tm_orm"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -18,19 +19,19 @@ type Expression struct {
 func NewExpression() *Expression {
 	return &Expression{
 		conditions: make([]bson.M, 0),
-		operator:   "$and",
+		operator:   tmorm.AndOp,
 	}
 }
 
 // And 设置为AND操作
 func (e *Expression) And() *Expression {
-	e.operator = "$and"
+	e.operator = tmorm.AndOp
 	return e
 }
 
 // Or 设置为OR操作
 func (e *Expression) Or() *Expression {
-	e.operator = "$or"
+	e.operator = tmorm.OrOp
 	return e
 }
 
@@ -79,49 +80,53 @@ func (f *FieldExpression) Eq(value any) *Expression {
 
 // Ne 不等于
 func (f *FieldExpression) Ne(value any) *Expression {
-	return f.parent.AddCondition(bson.M{f.fieldName: bson.M{"$ne": value}})
+	return f.parent.AddCondition(bson.M{f.fieldName: bson.M{tmorm.NeOp: value}})
+}
+
+func (f *FieldExpression) Not(expr *Expression) *Expression {
+	return f.parent.AddCondition(bson.M{f.fieldName: bson.M{tmorm.NotOp: expr.Build()}})
 }
 
 // Gt 大于
 func (f *FieldExpression) Gt(value any) *Expression {
-	return f.parent.AddCondition(bson.M{f.fieldName: bson.M{"$gt": value}})
+	return f.parent.AddCondition(bson.M{f.fieldName: bson.M{tmorm.GtOp: value}})
 }
 
 // Gte 大于等于
 func (f *FieldExpression) Gte(value any) *Expression {
-	return f.parent.AddCondition(bson.M{f.fieldName: bson.M{"$gte": value}})
+	return f.parent.AddCondition(bson.M{f.fieldName: bson.M{tmorm.GteOp: value}})
 }
 
 // Lt 小于
 func (f *FieldExpression) Lt(value any) *Expression {
-	return f.parent.AddCondition(bson.M{f.fieldName: bson.M{"$lt": value}})
+	return f.parent.AddCondition(bson.M{f.fieldName: bson.M{tmorm.LtOp: value}})
 }
 
 // Lte 小于等于
 func (f *FieldExpression) Lte(value any) *Expression {
-	return f.parent.AddCondition(bson.M{f.fieldName: bson.M{"$lte": value}})
+	return f.parent.AddCondition(bson.M{f.fieldName: bson.M{tmorm.LteOp: value}})
 }
 
 // In 在列表中
 func (f *FieldExpression) In(values ...any) *Expression {
-	return f.parent.AddCondition(bson.M{f.fieldName: bson.M{"$in": values}})
+	return f.parent.AddCondition(bson.M{f.fieldName: bson.M{tmorm.InOp: values}})
 }
 
 // NotIn 不在列表中
 func (f *FieldExpression) NotIn(values ...any) *Expression {
-	return f.parent.AddCondition(bson.M{f.fieldName: bson.M{"$nin": values}})
+	return f.parent.AddCondition(bson.M{f.fieldName: bson.M{tmorm.NinOp: values}})
 }
 
 // Exists 字段存在
 func (f *FieldExpression) Exists(exists bool) *Expression {
-	return f.parent.AddCondition(bson.M{f.fieldName: bson.M{"$exists": exists}})
+	return f.parent.AddCondition(bson.M{f.fieldName: bson.M{tmorm.ExistsOp: exists}})
 }
 
 // Regex 正则表达式匹配
 func (f *FieldExpression) Regex(pattern string, options ...string) *Expression {
-	regexValue := bson.M{"$regex": pattern}
+	regexValue := bson.M{tmorm.RegexOp: pattern}
 	if len(options) > 0 {
-		regexValue["$options"] = options[0]
+		regexValue[tmorm.OptionsOp] = options[0]
 	}
 	return f.parent.AddCondition(bson.M{f.fieldName: regexValue})
 }
@@ -145,8 +150,8 @@ func (f *FieldExpression) EndsWith(suffix string) *Expression {
 func (f *FieldExpression) Between(min, max any) *Expression {
 	return f.parent.AddCondition(bson.M{
 		f.fieldName: bson.M{
-			"$gte": min,
-			"$lte": max,
+			tmorm.GteOp: min,
+			tmorm.LteOp: max,
 		},
 	})
 }
@@ -158,22 +163,22 @@ func (f *FieldExpression) IsNull() *Expression {
 
 // IsNotNull 字段不为null
 func (f *FieldExpression) IsNotNull() *Expression {
-	return f.parent.AddCondition(bson.M{f.fieldName: bson.M{"$ne": nil}})
+	return f.parent.AddCondition(bson.M{f.fieldName: bson.M{tmorm.NeOp: nil}})
 }
 
 // Size 数组大小
 func (f *FieldExpression) Size(size int) *Expression {
-	return f.parent.AddCondition(bson.M{f.fieldName: bson.M{"$size": size}})
+	return f.parent.AddCondition(bson.M{f.fieldName: bson.M{tmorm.SizeOp: size}})
 }
 
 // All 数组包含所有元素
 func (f *FieldExpression) All(values ...any) *Expression {
-	return f.parent.AddCondition(bson.M{f.fieldName: bson.M{"$all": values}})
+	return f.parent.AddCondition(bson.M{f.fieldName: bson.M{tmorm.AllOp: values}})
 }
 
 // ElemMatch 数组元素匹配
 func (f *FieldExpression) ElemMatch(condition bson.M) *Expression {
-	return f.parent.AddCondition(bson.M{f.fieldName: bson.M{"$elemMatch": condition}})
+	return f.parent.AddCondition(bson.M{f.fieldName: bson.M{tmorm.ElemMatchOp: condition}})
 }
 
 // 时间相关的便利方法
@@ -253,34 +258,23 @@ func Or(expressions ...*Expression) *Expression {
 	return result
 }
 
+func Nor(expressions ...*Expression) *Expression {
+	result := NewExpression()
+	result.operator = tmorm.NorOp
+	for _, expr := range expressions {
+		built := expr.Build()
+		if len(built) > 0 {
+			result.AddCondition(built)
+		}
+	}
+	return result
+}
+
 // Not 否定表达式
 func Not(expression *Expression) *Expression {
 	built := expression.Build()
 	if len(built) == 0 {
 		return NewExpression()
 	}
-	return NewExpression().AddCondition(bson.M{"$not": built})
+	return NewExpression().AddCondition(bson.M{tmorm.NotOp: built})
 }
-
-// 示例用法：
-//
-// // 简单查询
-// expr := Q("age").Gt(18).Field("status").Eq("active")
-//
-// // 复杂查询
-// expr := And(
-//     Q("age").Between(18, 65),
-//     Or(
-//         Q("department").Eq("IT"),
-//         Q("department").Eq("Engineering"),
-//     ),
-//     Q("created_at").LastNDays(30),
-// )
-//
-// // 时间查询
-// expr := Q("created_at").Today()
-// expr := Q("updated_at").ThisWeek()
-//
-// // 字符串查询
-// expr := Q("name").Contains("john")
-// expr := Q("email").EndsWith("@company.com")

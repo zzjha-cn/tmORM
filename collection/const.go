@@ -11,10 +11,16 @@ var (
 	CountMtd    tmorm.MethodTyp = "Count"
 	DistinctMtd tmorm.MethodTyp = "Distinct"
 
+	InsertOneMtd  tmorm.MethodTyp = "InsertOne"
+	InsertManyMtd tmorm.MethodTyp = "InsertMany"
+
 	UpdateOneMtd  tmorm.MethodTyp = "UpdateOne"
 	UpdateManyMtd tmorm.MethodTyp = "UpdateMany"
 	ReplaceOneMtd tmorm.MethodTyp = "ReplaceOne"
 	UpsertOneMtd  tmorm.MethodTyp = "UpsertOne"
+
+	DeleteOneMtd  tmorm.MethodTyp = "DeleteOne"
+	DeleteManyMtd tmorm.MethodTyp = "DeleteMany"
 )
 
 func any2BsonA(list ...any) bson.A {

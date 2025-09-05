@@ -102,7 +102,7 @@ func TestQueryExpr(t *testing.T) {
 			check: func(expr *expression.Expression) error {
 				want := bson.M{
 					"$and": []bson.M{
-						{"status": bson.M{"$in": []interface{}{"active", "pending", "completed"}}},
+						{"status": bson.M{"$in": []any{"active", "pending", "completed"}}},
 						{"tags": bson.M{"$size": 3}},
 					},
 				}
