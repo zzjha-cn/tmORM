@@ -16,3 +16,5 @@ mytest
 .DS_Store
 .idea
 .vscode
+/ttt
+/log

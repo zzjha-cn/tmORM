@@ -1,10 +1,11 @@
 package test
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
 	tmorm "tm_orm"
 	"tm_orm/collection"
+
+	"github.com/stretchr/testify/assert"
 
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -25,18 +26,18 @@ func TestUpdateCmd(t *testing.T) {
 				return coll.Where("_id").Eq("test").Set("name", "sean").Set("age", 20)
 			},
 			check: func(bd *collection.UpdateBuilder[TestUser]) error {
-			updates := bd.GetUpdates().GetBsonD()
-			// 验证包含 $set 操作
-			assert.True(t, bd.GetUpdates().HasOperation(tmorm.SetOp))
-			// 验证 $set 操作的内容
-			setOp, exists := bd.GetUpdates().GetOperation(tmorm.SetOp)
-			assert.True(t, exists)
-			assert.Contains(t, setOp, bson.E{Key: "name", Value: "sean"})
-			assert.Contains(t, setOp, bson.E{Key: "age", Value: 20})
-			// 验证整体 BSON 结构
-			assert.NotEmpty(t, updates)
-			return nil
-		},
+				updates := bd.GetUpdates().GetBsonD()
+				// 验证包含 $set 操作
+				assert.True(t, bd.GetUpdates().HasOperation(tmorm.SetOp))
+				// 验证 $set 操作的内容
+				setOp, exists := bd.GetUpdates().GetOperation(tmorm.SetOp)
+				assert.True(t, exists)
+				assert.Contains(t, setOp, bson.E{Key: "name", Value: "sean"})
+				assert.Contains(t, setOp, bson.E{Key: "age", Value: 20})
+				// 验证整体 BSON 结构
+				assert.NotEmpty(t, updates)
+				return nil
+			},
 		},
 		{
 			name: "测试Set和Unset",
@@ -44,17 +45,17 @@ func TestUpdateCmd(t *testing.T) {
 				return coll.Where("_id").Eq("test").Set("name", "sean").Unset("age")
 			},
 			check: func(bd *collection.UpdateBuilder[TestUser]) error {
-			// 验证包含 $set 和 $unset 操作
-			assert.True(t, bd.GetUpdates().HasOperation(tmorm.SetOp))
-			assert.True(t, bd.GetUpdates().HasOperation(tmorm.UnsetOp))
-			// 验证 $set 操作内容
-			setOp, _ := bd.GetUpdates().GetOperation(tmorm.SetOp)
-			assert.Contains(t, setOp, bson.E{Key: "name", Value: "sean"})
-			// 验证 $unset 操作内容
-			unsetOp, _ := bd.GetUpdates().GetOperation(tmorm.UnsetOp)
-			assert.Contains(t, unsetOp, bson.E{Key: "age", Value: ""})
-			return nil
-		},
+				// 验证包含 $set 和 $unset 操作
+				assert.True(t, bd.GetUpdates().HasOperation(tmorm.SetOp))
+				assert.True(t, bd.GetUpdates().HasOperation(tmorm.UnsetOp))
+				// 验证 $set 操作内容
+				setOp, _ := bd.GetUpdates().GetOperation(tmorm.SetOp)
+				assert.Contains(t, setOp, bson.E{Key: "name", Value: "sean"})
+				// 验证 $unset 操作内容
+				unsetOp, _ := bd.GetUpdates().GetOperation(tmorm.UnsetOp)
+				assert.Contains(t, unsetOp, bson.E{Key: "age", Value: ""})
+				return nil
+			},
 		},
 		{
 			name: "测试数组操作",

@@ -236,21 +236,21 @@ func TestUpdaterE2E(t *testing.T) {
 				assert.NoError(t, err)
 			},
 			check: func(tc *tcase) {
-					data := tc.data.(*TestUser)
+				data := tc.data.(*TestUser)
 
-					// 测试数组操作：AddToSet, Push
-					_, err := coll.Where("_id").Eq(data.ID).
-						Set("name", data.Name).
-						AddToSet("tags", "golang").
-						Push("scores", 95).
-						UpdateOne(ctx)
-					assert.NoError(t, err)
+				// 测试数组操作：AddToSet, Push
+				_, err := coll.Where("_id").Eq(data.ID).
+					Set("name", data.Name).
+					AddToSet("tags", "golang").
+					Push("scores", 95).
+					UpdateOne(ctx)
+				assert.NoError(t, err)
 
-					// 验证数组操作结果
-					result, err := coll.Where("_id").Eq(data.ID).FindOne(ctx)
-					assert.NoError(t, err)
-					assert.Equal(t, data.Name, result.Name)
-				},
+				// 验证数组操作结果
+				result, err := coll.Where("_id").Eq(data.ID).FindOne(ctx)
+				assert.NoError(t, err)
+				assert.Equal(t, data.Name, result.Name)
+			},
 		},
 		{
 			name: "rename_operation",
@@ -270,21 +270,21 @@ func TestUpdaterE2E(t *testing.T) {
 				assert.NoError(t, err)
 			},
 			check: func(tc *tcase) {
-					data := tc.data.(*TestUser)
+				data := tc.data.(*TestUser)
 
-					// 测试字段重命名操作
-					_, err := coll.Where("_id").Eq(data.ID).
-						Set("fullName", data.Name).
-						Rename("name", "oldName").
-						UpdateOne(ctx)
-					assert.NoError(t, err)
+				// 测试字段重命名操作
+				_, err := coll.Where("_id").Eq(data.ID).
+					Set("fullName", data.Name).
+					Rename("name", "oldName").
+					UpdateOne(ctx)
+				assert.NoError(t, err)
 
-					// 验证重命名操作结果
-					result, err := coll.Where("_id").Eq(data.ID).FindOne(ctx)
-					assert.NoError(t, err)
-					// 原字段应该被重命名，新字段应该存在
-					assert.Equal(t, int64(32), result.Age)
-				},
+				// 验证重命名操作结果
+				result, err := coll.Where("_id").Eq(data.ID).FindOne(ctx)
+				assert.NoError(t, err)
+				// 原字段应该被重命名，新字段应该存在
+				assert.Equal(t, int64(32), result.Age)
+			},
 		},
 		{
 			name: "conditional_update_with_upsert",
@@ -302,23 +302,23 @@ func TestUpdaterE2E(t *testing.T) {
 				assert.NoError(t, err)
 			},
 			check: func(tc *tcase) {
-					data := tc.data.(*TestUser)
+				data := tc.data.(*TestUser)
 
-					// 测试条件更新：如果文档不存在则插入
-					_, err := coll.Where("_id").Eq(data.ID).
-						Set("name", data.Name).
-						Set("age", data.Age).
-						SetOnInsert("createdBy", "system").
-						CurrentDate("createdAt").
-						UpdateOne(ctx)
-					assert.NoError(t, err)
+				// 测试条件更新：如果文档不存在则插入
+				_, err := coll.Where("_id").Eq(data.ID).
+					Set("name", data.Name).
+					Set("age", data.Age).
+					SetOnInsert("createdBy", "system").
+					CurrentDate("createdAt").
+					UpdateOne(ctx)
+				assert.NoError(t, err)
 
-					// 验证文档被创建
-					result, err := coll.Where("_id").Eq(data.ID).FindOne(ctx)
-					assert.NoError(t, err)
-					assert.Equal(t, data.Name, result.Name)
-					assert.Equal(t, data.Age, result.Age)
-				},
+				// 验证文档被创建
+				result, err := coll.Where("_id").Eq(data.ID).FindOne(ctx)
+				assert.NoError(t, err)
+				assert.Equal(t, data.Name, result.Name)
+				assert.Equal(t, data.Age, result.Age)
+			},
 		},
 		{
 			name: "batch_update_with_different_conditions",
@@ -354,20 +354,20 @@ func TestUpdaterE2E(t *testing.T) {
 				}
 			},
 			check: func(tc *tcase) {
-					// 测试批量更新：年龄大于30的用户增加5岁
-					_, err := coll.Where("age").Gt(30).Inc("age", 5).Update(ctx)
-					assert.NoError(t, err)
+				// 测试批量更新：年龄大于30的用户增加5岁
+				_, err := coll.Where("age").Gt(30).Inc("age", 5).Update(ctx)
+				assert.NoError(t, err)
 
-					// 验证批量更新结果
-					results, err := coll.Where("age").Gt(35).Find(ctx)
-					assert.NoError(t, err)
-					assert.Equal(t, 2, len(results)) // henry(45) 和 ivy(40)
+				// 验证批量更新结果
+				results, err := coll.Where("age").Gt(35).Find(ctx)
+				assert.NoError(t, err)
+				assert.Equal(t, 2, len(results)) // henry(45) 和 ivy(40)
 
-					// 验证年龄小于等于30的用户未被更新
-					jackResult, err := coll.Where("name").Eq("jack").FindOne(ctx)
-					assert.NoError(t, err)
-					assert.Equal(t, int64(25), jackResult.Age) // 未被更新
-				},
+				// 验证年龄小于等于30的用户未被更新
+				jackResult, err := coll.Where("name").Eq("jack").FindOne(ctx)
+				assert.NoError(t, err)
+				assert.Equal(t, int64(25), jackResult.Age) // 未被更新
+			},
 		},
 		{
 			name: "complex_nested_update_operations",
@@ -387,26 +387,26 @@ func TestUpdaterE2E(t *testing.T) {
 				assert.NoError(t, err)
 			},
 			check: func(tc *tcase) {
-					data := tc.data.(*TestUser)
+				data := tc.data.(*TestUser)
 
-					// 测试复杂嵌套更新操作：多种操作组合
-					_, err := coll.Where("_id").Eq(data.ID).
-						Set("name", "karen_updated").
-						Inc("age", 1).
-						Mul("score", 2).
-						AddToSet("skills", "golang").
-						Push("achievements", "expert").
-						CurrentDate("lastUpdated").
-						SetOnInsert("createdBy", "admin").
-						UpdateOne(ctx)
-					assert.NoError(t, err)
+				// 测试复杂嵌套更新操作：多种操作组合
+				_, err := coll.Where("_id").Eq(data.ID).
+					Set("name", "karen_updated").
+					Inc("age", 1).
+					Mul("score", 2).
+					AddToSet("skills", "golang").
+					Push("achievements", "expert").
+					CurrentDate("lastUpdated").
+					SetOnInsert("createdBy", "admin").
+					UpdateOne(ctx)
+				assert.NoError(t, err)
 
-					// 验证复杂更新操作结果
-					result, err := coll.Where("_id").Eq(data.ID).FindOne(ctx)
-					assert.NoError(t, err)
-					assert.Equal(t, "karen_updated", result.Name)
-					assert.Equal(t, int64(30), result.Age)
-				},
+				// 验证复杂更新操作结果
+				result, err := coll.Where("_id").Eq(data.ID).FindOne(ctx)
+				assert.NoError(t, err)
+				assert.Equal(t, "karen_updated", result.Name)
+				assert.Equal(t, int64(30), result.Age)
+			},
 		},
 	}
 

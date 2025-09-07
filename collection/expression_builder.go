@@ -5,7 +5,12 @@ import (
 	"tm_orm/expression"
 )
 
-// CollectionExpressionBuilder 的所有表达式方法
+// CollectionExpressionBuilder 集合表达式构建器
+type CollectionExpressionBuilder[T any] struct {
+	collection *Collection[T]
+	expr       *expression.Expression
+	field      string
+}
 
 // Eq 等于条件
 func (e *CollectionExpressionBuilder[T]) Eq(value any) *Collection[T] {

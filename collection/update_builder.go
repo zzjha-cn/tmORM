@@ -9,6 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// IUpdateOperation 更新操作接口
 type IUpdateOperation interface {
 	// GetBsonD 获取 BSON 文档
 	GetBsonD() bson.D
@@ -182,7 +183,7 @@ func (u *UpdateBuilder[T]) Update(ctx context.Context, opts ...*options.UpdateOp
 		next(mctx)
 	}
 
-	mctx := tmorm.NewMiddleContext(ctx, "UpdateMany")
+	mctx := tmorm.NewMiddleContext(ctx, UpdateManyMtd)
 	mctx.Operation = u.collection.filter
 
 	tmorm.Executor(mctx, u.collection.combineChain(r))
@@ -206,7 +207,7 @@ func (u *UpdateBuilder[T]) UpdateOne(ctx context.Context, opts ...*options.Updat
 		next(mctx)
 	}
 
-	mctx := tmorm.NewMiddleContext(ctx, "UpdateOne")
+	mctx := tmorm.NewMiddleContext(ctx, UpdateOneMtd)
 	mctx.Operation = u.collection.filter
 
 	tmorm.Executor(mctx, u.collection.combineChain(r))

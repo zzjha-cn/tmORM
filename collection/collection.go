@@ -67,13 +67,6 @@ func (q *ExpressionQuery) GetBsonD() bson.D {
 	return result
 }
 
-// CollectionExpressionBuilder 集合表达式构建器
-type CollectionExpressionBuilder[T any] struct {
-	collection *Collection[T]
-	expr       *expression.Expression
-	field      string
-}
-
 // 便捷的表达式构建函数
 
 // And 创建AND表达式组合
