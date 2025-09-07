@@ -200,30 +200,20 @@ func (c *Collection[T]) Count(ctx context.Context, opts ...*options.CountOptions
 
 // Set 设置字段值（用于更新）
 func (c *Collection[T]) Set(field string, value any) *UpdateBuilder[T] {
-	return &UpdateBuilder[T]{
-		collection: c,
-		updates:    bson.D{{tmorm.SetOp, bson.D{{field, value}}}},
-	}
+	builder := NewUpdateBuilder[T](c)
+	return builder.Set(field, value)
 }
 
 // Inc 增加字段值
 func (c *Collection[T]) Inc(field string, value any) *UpdateBuilder[T] {
-	return &UpdateBuilder[T]{
-		collection: c,
-		updates:    bson.D{{tmorm.IncOp, bson.D{{field, value}}}},
-	}
+	builder := NewUpdateBuilder[T](c)
+	return builder.Inc(field, value)
 }
 
 // Unset 删除字段
 func (c *Collection[T]) Unset(fields ...string) *UpdateBuilder[T] {
-	unsetDoc := bson.D{}
-	for _, field := range fields {
-		unsetDoc = append(unsetDoc, bson.E{Key: field, Value: ""})
-	}
-	return &UpdateBuilder[T]{
-		collection: c,
-		updates:    bson.D{{tmorm.UnsetOp, unsetDoc}},
-	}
+	builder := NewUpdateBuilder[T](c)
+	return builder.Unset(fields...)
 }
 
 // Insert 插入文档

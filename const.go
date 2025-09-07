@@ -87,6 +87,7 @@ const (
 	DayOfYearOp           = "$dayOfYear"
 	YearOp                = "$year"
 	MonthOp               = "$month"
+	HourOp                = "$hour"
 	WeekOp                = "$week"
 	CondOp                = "$cond"
 	IfNullOp              = "$ifNull"
@@ -117,4 +118,35 @@ const (
 	CaseOp        = "case"
 	ThenOp        = "then"
 	DefaultCaseOp = "default"
+
+	ToStringOp    = "$toString"
+	ToIntOp       = "$toInt"
+	ToDoubleOp    = "$toDouble"
+	ToDateOp      = "$toDate"
+	ToBoolOp      = "$toBool"
+	ToDecimalOp   = "$toDecimal"
+	ToLongOp      = "$toLong"
+	ToObjectIdOp  = "$toObjectId"
+
+	MinuteOp      = "$minute"
+	SecondOp      = "$second"
+
+	StrLenCPOp    = "$strLenCP"
+
+	LiteralOp     = "$literal"
+
+	MetaOp        = "$meta"
+
+	GraphLookupOp = "$graphLookup"
+	SampleOp      = "$sample"
+	OutOp         = "$out"
+	MergeOp       = "$merge"
+	RedactOp      = "$redact"
+	GeoNearOp     = "$geoNear"
+	IndexStatsOp  = "$indexStats"
+	CollStatsOp   = "$collStats"
+	ListSessionsOp = "$listSessions"
+	CurrentOpOp   = "$currentOp"
+
+	ConvertOp     = "$convert"
 )
