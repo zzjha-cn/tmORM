@@ -4,6 +4,7 @@ import (
 	"context"
 	tmorm "github.com/zzjha-cn/tm_orm"
 	"github.com/zzjha-cn/tm_orm/expression"
+	"github.com/zzjha-cn/tm_orm/impl"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -15,7 +16,7 @@ type Aggregator[T any] struct {
 	client         *tmorm.ORMClient
 	DBName         string
 	CollectionName string
-	pipeline       []bson.M
+	pipeline       impl.IAggregationOperation
 	msList         []tmorm.MiddlewareFunc
 }
 
@@ -25,14 +26,35 @@ func NewAggregator[T any](cli *tmorm.ORMClient, db string, collectionName string
 		client:         cli,
 		DBName:         db,
 		CollectionName: collectionName,
-		pipeline:       make([]bson.M, 0),
+		pipeline:       NewAggregationOperation(),
 		msList:         msList,
 	}
 }
 
 // Pipeline 获取管道数据
 func (a *Aggregator[T]) Pipeline() []bson.M {
+	return a.pipeline.GetPipeline()
+}
+
+// GetPipelineOperation 获取管道操作接口
+func (a *Aggregator[T]) GetPipelineOperation() impl.IAggregationOperation {
 	return a.pipeline
+}
+
+// HasStage 检查是否存在特定类型的阶段
+func (a *Aggregator[T]) HasStage(stageType string) bool {
+	return a.pipeline.HasStage(stageType)
+}
+
+// GetStages 获取特定类型的所有阶段
+func (a *Aggregator[T]) GetStages(stageType string) []bson.M {
+	return a.pipeline.GetStages(stageType)
+}
+
+// ClearPipeline 清空管道
+func (a *Aggregator[T]) ClearPipeline() *Aggregator[T] {
+	a.pipeline.Clear()
+	return a
 }
 
 func (a *Aggregator[T]) combineChain(handle tmorm.MiddlewareFunc) (res []tmorm.MiddlewareFunc) {
@@ -44,7 +66,7 @@ func (a *Aggregator[T]) combineChain(handle tmorm.MiddlewareFunc) (res []tmorm.M
 
 // AddStage 添加管道阶段
 func (a *Aggregator[T]) AddStage(stage bson.M) *Aggregator[T] {
-	a.pipeline = append(a.pipeline, stage)
+	a.pipeline.AddStage(stage)
 	return a
 }
 
@@ -124,8 +146,13 @@ func (a *Aggregator[T]) Skip(skip int64) *Aggregator[T] {
 
 // Unwind 展开数组
 func (a *Aggregator[T]) Unwind(path string, preserveNullAndEmptyArrays ...bool) *Aggregator[T] {
+	// 如果没有额外选项，使用简单的字符串格式
+	if len(preserveNullAndEmptyArrays) == 0 || !preserveNullAndEmptyArrays[0] {
+		return a.AddStage(bson.M{tmorm.UnwindOp: "$" + path})
+	}
+	// 有额外选项时使用对象格式
 	unwindStage := bson.M{"path": "$" + path}
-	if len(preserveNullAndEmptyArrays) > 0 && preserveNullAndEmptyArrays[0] {
+	if preserveNullAndEmptyArrays[0] {
 		unwindStage["preserveNullAndEmptyArrays"] = true
 	}
 	return a.AddStage(bson.M{tmorm.UnwindOp: unwindStage})
@@ -177,13 +204,14 @@ func (a *Aggregator[T]) Bucket(groupBy any, boundaries []any, defaultBucket any,
 func (a *Aggregator[T]) Execute(ctx context.Context, opts ...*options.AggregateOptions) ([]*T, error) {
 	var r tmorm.MiddlewareFunc = func(mctx *tmorm.MiddleCtx, next func(m *tmorm.MiddleCtx)) {
 		// 转换为bson.A格式
-		pipelineA := make(bson.A, len(a.pipeline))
-		for i, stage := range a.pipeline {
+		pipeline := a.pipeline.GetPipeline()
+		pipelineA := make(bson.A, len(pipeline))
+		for i, stage := range pipeline {
 			pipelineA[i] = stage
 		}
 
 		// 执行聚合
-		cursor, err := a.client.Database(a.DBName).MongoDatabase().Collection(a.CollectionName).Aggregate(ctx, pipelineA, opts...)
+		cursor, err := a.client.Database(mctx.DBName).MongoDatabase().Collection(mctx.CollectionName).Aggregate(ctx, pipelineA, opts...)
 		if err != nil {
 			mctx.Result = &tmorm.MResult{Val: nil, Err: err}
 			next(mctx)
@@ -198,7 +226,8 @@ func (a *Aggregator[T]) Execute(ctx context.Context, opts ...*options.AggregateO
 		next(mctx)
 	}
 
-	mctx := tmorm.NewMiddleContext(ctx, "Aggregate")
+	mctx := tmorm.NewMiddleContext(ctx, tmorm.AggregateMtd, a.DBName, a.CollectionName)
+	mctx.AggOp = a.pipeline
 	tmorm.Executor(mctx, a.combineChain(r))
 	res := mctx.Result
 	if res.Val != nil {
@@ -210,17 +239,19 @@ func (a *Aggregator[T]) Execute(ctx context.Context, opts ...*options.AggregateO
 // ExecuteRaw 执行聚合并返回原始结果
 func (a *Aggregator[T]) ExecuteRaw(ctx context.Context, opts ...*options.AggregateOptions) (*mongo.Cursor, error) {
 	var r tmorm.MiddlewareFunc = func(mctx *tmorm.MiddleCtx, next func(m *tmorm.MiddleCtx)) {
-		pipelineA := make(bson.A, len(a.pipeline))
-		for i, stage := range a.pipeline {
+		pipeline := a.pipeline.GetPipeline()
+		pipelineA := make(bson.A, len(pipeline))
+		for i, stage := range pipeline {
 			pipelineA[i] = stage
 		}
 
-		cursor, err := a.client.Database(a.DBName).MongoDatabase().Collection(a.CollectionName).Aggregate(ctx, pipelineA, opts...)
+		cursor, err := a.client.Database(mctx.DBName).MongoDatabase().Collection(mctx.CollectionName).Aggregate(ctx, pipelineA, opts...)
 		mctx.Result = &tmorm.MResult{Val: cursor, Err: err}
 		next(mctx)
 	}
 
-	mctx := tmorm.NewMiddleContext(ctx, "AggregateRaw")
+	mctx := tmorm.NewMiddleContext(ctx, tmorm.AggregateRawMtd, a.DBName, a.CollectionName)
+	mctx.AggOp = a.pipeline
 	tmorm.Executor(mctx, a.combineChain(r))
 	res := mctx.Result
 	if res.Val != nil {
@@ -392,16 +423,10 @@ func (a *Aggregator[T]) Paginate(page, pageSize int64) *Aggregator[T] {
 
 // PaginateWithCount 分页并统计总数
 func (a *Aggregator[T]) PaginateWithCount(ctx context.Context, page, pageSize int64) (*PaginationResult[T], error) {
-	// 创建两个管道：一个用于获取数据，一个用于统计总数
-	dataPipeline := make([]bson.M, len(a.pipeline))
-	copy(dataPipeline, a.pipeline)
-
-	countPipeline := make([]bson.M, len(a.pipeline))
-	copy(countPipeline, a.pipeline)
-
 	// 使用facet同时执行两个管道
 	facetAgg := NewAggregator[any](a.client, a.DBName, a.CollectionName, a.msList...)
-	for _, stage := range a.pipeline {
+	pipeline := a.pipeline.GetPipeline()
+	for _, stage := range pipeline {
 		facetAgg.AddStage(stage)
 	}
 

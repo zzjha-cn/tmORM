@@ -8,13 +8,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zzjha-cn/tm_orm/impl"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type (
-	MethodTyp string
-
 	MiddlewareFunc func(mctx *MiddleCtx, next func(m *MiddleCtx))
 
 	IOperation interface {
@@ -23,18 +23,24 @@ type (
 
 	// 中间流程上下文
 	MiddleCtx struct {
-		UserCtx   context.Context
-		Typ       MethodTyp
-		Operation IOperation
-		Result    *MResult
+		UserCtx        context.Context
+		Typ            MethodTyp
+		Operation      IOperation
+		UpdateOp       impl.IUpdateOperation
+		AggOp          impl.IAggregationOperation
+		Result         *MResult
+		DBName         string
+		CollectionName string
 	}
 )
 
-func NewMiddleContext(ctx context.Context, typ MethodTyp) *MiddleCtx {
+func NewMiddleContext(ctx context.Context, typ MethodTyp, dbName, collectionName string) *MiddleCtx {
 	return &MiddleCtx{
-		UserCtx: ctx,
-		Typ:     typ,
-		Result:  NewMResult(),
+		UserCtx:        ctx,
+		Typ:            typ,
+		Result:         NewMResult(),
+		DBName:         dbName,
+		CollectionName: collectionName,
 	}
 }
 

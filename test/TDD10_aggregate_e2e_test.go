@@ -81,7 +81,7 @@ func TestAggregateE2E(t *testing.T) {
 				}
 			},
 			check: func(tc *tcc) {
-				agg := aggregator.NewAggregator[any](ormClient, "mytest", "users")
+				agg := aggregator.NewAggregator[map[string]any](ormClient, "mytest", "users")
 
 				// 匹配年龄大于等于25的用户，按城市分组统计
 				agg.Match(bson.M{"age": bson.M{"$gte": 25}}).
@@ -98,7 +98,7 @@ func TestAggregateE2E(t *testing.T) {
 				assert.Equal(t, 2, len(results))
 
 				// 验证北京的统计结果（用户数更多）
-				firstResult := (*results[0]).(map[string]any)
+				firstResult := *results[0]
 				assert.Equal(t, "beijing", firstResult["_id"])
 				assert.Equal(t, int32(2), firstResult["user_count"])
 				assert.Equal(t, float64(27.5), firstResult["avg_age"])
@@ -145,7 +145,7 @@ func TestAggregateE2E(t *testing.T) {
 				}
 			},
 			check: func(tc *tcc) {
-				agg := aggregator.NewAggregator[any](ormClient, "mytest", "users")
+				agg := aggregator.NewAggregator[map[string]any](ormClient, "mytest", "users")
 
 				// 按城市分组，计算薪资统计
 				agg.Group("$city", bson.M{
@@ -162,7 +162,7 @@ func TestAggregateE2E(t *testing.T) {
 				assert.Equal(t, 2, len(results))
 
 				// 验证上海的统计结果（平均薪资更高）
-				firstResult := (*results[0]).(map[string]any)
+				firstResult := *results[0]
 				assert.Equal(t, "shanghai", firstResult["_id"])
 				assert.Equal(t, int32(1), firstResult["user_count"])
 				assert.Equal(t, float64(70000), firstResult["avg_salary"])
@@ -200,7 +200,7 @@ func TestAggregateE2E(t *testing.T) {
 				}
 			},
 			check: func(tc *tcc) {
-				agg := aggregator.NewAggregator[any](ormClient, "mytest", "users")
+				agg := aggregator.NewAggregator[map[string]any](ormClient, "mytest", "users")
 
 				// 投影选择特定字段并添加计算字段
 				agg.Project(bson.M{
@@ -224,7 +224,7 @@ func TestAggregateE2E(t *testing.T) {
 
 				// 验证投影结果
 				for _, result := range results {
-					resultMap := (*result).(map[string]any)
+					resultMap := *result
 					assert.Contains(t, resultMap, "name")
 					assert.Contains(t, resultMap, "age")
 					assert.Contains(t, resultMap, "city")
@@ -291,7 +291,7 @@ func TestAggregateE2E(t *testing.T) {
 			},
 			after: func(tc *tcc) {
 				data := tc.data.(map[string]any)
-				users := data["users"].([]*TestUser)
+				users := data["users"].([]*AggTestUser)
 				orders := data["orders"].([]*TestOrder)
 
 				// 清理用户数据
@@ -309,7 +309,7 @@ func TestAggregateE2E(t *testing.T) {
 				}
 			},
 			check: func(tc *tcc) {
-				agg := aggregator.NewAggregator[any](ormClient, "mytest", "users")
+				agg := aggregator.NewAggregator[map[string]any](ormClient, "mytest", "users")
 
 				// 关联查询用户和订单，计算订单统计
 				agg.Lookup("orders", "_id", "user_id", "user_orders").
@@ -329,7 +329,7 @@ func TestAggregateE2E(t *testing.T) {
 				assert.Equal(t, 2, len(results))
 
 				// 验证第一个结果（alice，总金额更高）
-				firstResult := (*results[0]).(map[string]any)
+				firstResult := *results[0]
 				assert.Equal(t, "alice", firstResult["name"])
 				assert.Equal(t, int32(2), firstResult["order_count"])
 				assert.Equal(t, float64(300), firstResult["total_amount"])
@@ -373,11 +373,11 @@ func TestAggregateE2E(t *testing.T) {
 				}
 			},
 			check: func(tc *tcc) {
-				agg := aggregator.NewAggregator[any](ormClient, "mytest", "users")
+				agg := aggregator.NewAggregator[map[string]any](ormClient, "mytest", "users")
 
 				// 展开标签数组，按标签分组统计
 				agg.Match(bson.M{"tags": bson.M{"$exists": true, "$ne": nil}}).
-					Unwind("$tags").
+					Unwind("tags").
 					Group("$tags", bson.M{
 						"user_count": bson.M{"$sum": 1},
 						"users":      bson.M{"$push": "$name"},
@@ -391,7 +391,7 @@ func TestAggregateE2E(t *testing.T) {
 				// 验证developer标签的统计结果
 				found := false
 				for _, result := range results {
-					resultMap := (*result).(map[string]any)
+					resultMap := *result
 					if resultMap["_id"] == "developer" {
 						found = true
 						assert.Equal(t, int32(2), resultMap["user_count"])
@@ -432,14 +432,14 @@ func TestAggregateE2E(t *testing.T) {
 				},
 			},
 			before: func(tc *tcc) {
-				data := tc.data.([]*TestUser)
+				data := tc.data.([]*AggTestUser)
 				for _, user := range data {
 					_, err := MongoClient.Database("mytest").Collection("users").InsertOne(ctx, user)
 					assert.NoError(t, err)
 				}
 			},
 			after: func(tc *tcc) {
-				data := tc.data.([]*TestUser)
+				data := tc.data.([]*AggTestUser)
 				for _, user := range data {
 					_, err := MongoClient.Database("mytest").Collection("users").DeleteMany(ctx,
 						bson.M{"_id": user.ID})
@@ -447,7 +447,7 @@ func TestAggregateE2E(t *testing.T) {
 				}
 			},
 			check: func(tc *tcc) {
-				agg := aggregator.NewAggregator[any](ormClient, "mytest", "users")
+				agg := aggregator.NewAggregator[map[string]any](ormClient, "mytest", "users")
 
 				// 使用switch条件添加年龄段字段，然后按年龄段分组
 				agg.AddStage(bson.M{
@@ -485,7 +485,7 @@ func TestAggregateE2E(t *testing.T) {
 
 				// 验证各年龄段的统计结果
 				for _, result := range results {
-					resultMap := (*result).(map[string]any)
+					resultMap := *result
 					assert.Contains(t, resultMap, "_id")
 					assert.Contains(t, resultMap, "total_users")
 					assert.Contains(t, resultMap, "high_salary_users")
@@ -531,7 +531,7 @@ func TestAggregateE2E(t *testing.T) {
 				}
 			},
 			check: func(tc *tcc) {
-				agg := aggregator.NewAggregator[any](ormClient, "mytest", "orders")
+				agg := aggregator.NewAggregator[map[string]any](ormClient, "mytest", "orders")
 
 				// 按状态分组统计订单
 				agg.Match(bson.M{"status": bson.M{"$in": []string{"completed", "pending"}}}).
@@ -549,7 +549,7 @@ func TestAggregateE2E(t *testing.T) {
 				assert.Equal(t, 2, len(results))
 
 				// 验证completed状态的统计结果（总金额更高）
-				firstResult := (*results[0]).(map[string]any)
+				firstResult := *results[0]
 				assert.Equal(t, "completed", firstResult["_id"])
 				assert.Equal(t, int32(2), firstResult["order_count"])
 				assert.Equal(t, float64(300), firstResult["total_amount"])
@@ -585,14 +585,14 @@ func TestAggregateE2E(t *testing.T) {
 				},
 			},
 			before: func(tc *tcc) {
-				data := tc.data.([]*TestUser)
+				data := tc.data.([]*AggTestUser)
 				for _, user := range data {
 					_, err := MongoClient.Database("mytest").Collection("users").InsertOne(ctx, user)
 					assert.NoError(t, err)
 				}
 			},
 			after: func(tc *tcc) {
-				data := tc.data.([]*TestUser)
+				data := tc.data.([]*AggTestUser)
 				for _, user := range data {
 					_, err := MongoClient.Database("mytest").Collection("users").DeleteMany(ctx,
 						bson.M{"_id": user.ID})
@@ -600,11 +600,11 @@ func TestAggregateE2E(t *testing.T) {
 				}
 			},
 			check: func(tc *tcc) {
-				agg := aggregator.NewAggregator[any](ormClient, "mytest", "users")
+				agg := aggregator.NewAggregator[map[string]any](ormClient, "mytest", "users")
 
 				// 复杂管道：匹配、展开标签、按标签分组、添加计算字段、排序、限制
 				agg.Match(bson.M{"salary": bson.M{"$gte": 50000}}).
-					Unwind("$tags").
+					Unwind("tags").
 					Group("$tags", bson.M{
 						"user_count":   bson.M{"$sum": 1},
 						"avg_salary":   bson.M{"$avg": "$salary"},
@@ -631,7 +631,7 @@ func TestAggregateE2E(t *testing.T) {
 
 				// 验证结果包含所需字段
 				for _, result := range results {
-					resultMap := (*result).(map[string]any)
+					resultMap := *result
 					assert.Contains(t, resultMap, "_id")
 					assert.Contains(t, resultMap, "user_count")
 					assert.Contains(t, resultMap, "avg_salary")

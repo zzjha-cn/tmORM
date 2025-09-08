@@ -111,7 +111,7 @@ func (c *Collection[T]) Find(ctx context.Context, opts ...*options.FindOptions) 
 			filter = mctx.Operation.GetBsonD()
 		}
 
-		cursor, err := c.client.Database(c.DBName).MongoDatabase().Collection(c.CollectionName).Find(ctx, filter, opts...)
+		cursor, err := c.client.Database(mctx.DBName).MongoDatabase().Collection(mctx.CollectionName).Find(ctx, filter, opts...)
 		if err == nil {
 			err = cursor.All(ctx, &res)
 			cursor.Close(ctx)
@@ -127,7 +127,7 @@ func (c *Collection[T]) Find(ctx context.Context, opts ...*options.FindOptions) 
 		next(mctx)
 	}
 
-	mctx := tmorm.NewMiddleContext(ctx, FindMtd)
+	mctx := tmorm.NewMiddleContext(ctx, tmorm.FindMtd, c.DBName, c.CollectionName)
 	mctx.Operation = c.filter
 
 	tmorm.Executor(mctx, c.combineChain(r))
@@ -149,7 +149,7 @@ func (c *Collection[T]) FindOne(ctx context.Context, opts ...*options.FindOneOpt
 			filter = mctx.Operation.GetBsonD()
 		}
 
-		err := c.client.Database(c.DBName).MongoDatabase().Collection(c.CollectionName).FindOne(ctx, filter, opts...).Decode(&res)
+		err := c.client.Database(mctx.DBName).MongoDatabase().Collection(mctx.CollectionName).FindOne(ctx, filter, opts...).Decode(&res)
 		if err != nil {
 			mctx.Result = &tmorm.MResult{Val: nil, Err: err}
 		} else {
@@ -159,7 +159,7 @@ func (c *Collection[T]) FindOne(ctx context.Context, opts ...*options.FindOneOpt
 		next(mctx)
 	}
 
-	mctx := tmorm.NewMiddleContext(ctx, FindOneMtd)
+	mctx := tmorm.NewMiddleContext(ctx, tmorm.FindOneMtd, c.DBName, c.CollectionName)
 	mctx.Operation = c.filter
 
 	tmorm.Executor(mctx, c.combineChain(r))
@@ -178,13 +178,13 @@ func (c *Collection[T]) Count(ctx context.Context, opts ...*options.CountOptions
 			filter = mctx.Operation.GetBsonD()
 		}
 
-		count, err := c.client.Database(c.DBName).MongoDatabase().Collection(c.CollectionName).CountDocuments(ctx, filter, opts...)
+		count, err := c.client.Database(mctx.DBName).MongoDatabase().Collection(mctx.CollectionName).CountDocuments(ctx, filter, opts...)
 		mctx.Result = &tmorm.MResult{Val: count, Err: err}
 
 		next(mctx)
 	}
 
-	mctx := tmorm.NewMiddleContext(ctx, CountMtd)
+	mctx := tmorm.NewMiddleContext(ctx, tmorm.CountMtd, c.DBName, c.CollectionName)
 	mctx.Operation = c.filter
 
 	tmorm.Executor(mctx, c.combineChain(r))
@@ -213,12 +213,12 @@ func (c *Collection[T]) Unset(fields ...string) *UpdateBuilder[T] {
 // Insert 插入文档
 func (c *Collection[T]) Insert(ctx context.Context, doc *T) (*mongo.InsertOneResult, error) {
 	var r tmorm.MiddlewareFunc = func(mctx *tmorm.MiddleCtx, next func(m *tmorm.MiddleCtx)) {
-		res, err := c.client.Database(c.DBName).MongoDatabase().Collection(c.CollectionName).InsertOne(ctx, doc)
+		res, err := c.client.Database(mctx.DBName).MongoDatabase().Collection(mctx.CollectionName).InsertOne(ctx, doc)
 		mctx.Result = &tmorm.MResult{Val: res, Err: err}
 		next(mctx)
 	}
 
-	mctx := tmorm.NewMiddleContext(ctx, InsertOneMtd)
+	mctx := tmorm.NewMiddleContext(ctx, tmorm.InsertOneMtd, c.DBName, c.CollectionName)
 	tmorm.Executor(mctx, c.combineChain(r))
 	res := mctx.Result
 	if res.Val != nil {
@@ -234,12 +234,12 @@ func (c *Collection[T]) InsertMany(ctx context.Context, docs []*T) (*mongo.Inser
 		for i, doc := range docs {
 			interfaces[i] = doc
 		}
-		res, err := c.client.Database(c.DBName).MongoDatabase().Collection(c.CollectionName).InsertMany(ctx, interfaces)
+		res, err := c.client.Database(mctx.DBName).MongoDatabase().Collection(mctx.CollectionName).InsertMany(ctx, interfaces)
 		mctx.Result = &tmorm.MResult{Val: res, Err: err}
 		next(mctx)
 	}
 
-	mctx := tmorm.NewMiddleContext(ctx, InsertManyMtd)
+	mctx := tmorm.NewMiddleContext(ctx, tmorm.InsertManyMtd, c.DBName, c.CollectionName)
 	tmorm.Executor(mctx, c.combineChain(r))
 	res := mctx.Result
 	if res.Val != nil {
@@ -255,12 +255,12 @@ func (c *Collection[T]) Delete(ctx context.Context) (*mongo.DeleteResult, error)
 		if mctx.Operation != nil {
 			filter = mctx.Operation.GetBsonD()
 		}
-		res, err := c.client.Database(c.DBName).MongoDatabase().Collection(c.CollectionName).DeleteMany(ctx, filter)
+		res, err := c.client.Database(mctx.DBName).MongoDatabase().Collection(mctx.CollectionName).DeleteMany(ctx, filter)
 		mctx.Result = &tmorm.MResult{Val: res, Err: err}
 		next(mctx)
 	}
 
-	mctx := tmorm.NewMiddleContext(ctx, DeleteManyMtd)
+	mctx := tmorm.NewMiddleContext(ctx, tmorm.DeleteManyMtd, c.DBName, c.CollectionName)
 	mctx.Operation = c.filter
 	tmorm.Executor(mctx, c.combineChain(r))
 	res := mctx.Result
@@ -277,12 +277,12 @@ func (c *Collection[T]) DeleteOne(ctx context.Context) (*mongo.DeleteResult, err
 		if mctx.Operation != nil {
 			filter = mctx.Operation.GetBsonD()
 		}
-		res, err := c.client.Database(c.DBName).MongoDatabase().Collection(c.CollectionName).DeleteOne(ctx, filter)
+		res, err := c.client.Database(mctx.DBName).MongoDatabase().Collection(mctx.CollectionName).DeleteOne(ctx, filter)
 		mctx.Result = &tmorm.MResult{Val: res, Err: err}
 		next(mctx)
 	}
 
-	mctx := tmorm.NewMiddleContext(ctx, DeleteOneMtd)
+	mctx := tmorm.NewMiddleContext(ctx, tmorm.DeleteOneMtd, c.DBName, c.CollectionName)
 	mctx.Operation = c.filter
 	tmorm.Executor(mctx, c.combineChain(r))
 	res := mctx.Result

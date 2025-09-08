@@ -339,7 +339,7 @@ func TestAggregatorUnwind(t *testing.T) {
 		{
 			name: "simple_unwind",
 			buildFn: func() *aggregator.Aggregator[any] {
-				return aggregator.NewAggregator[any](client, "testdb", "users").Unwind("$tags")
+				return aggregator.NewAggregator[any](client, "testdb", "users").Unwind("tags")
 			},
 			expected: []bson.M{
 				{tmorm.UnwindOp: "$tags"},
@@ -561,7 +561,7 @@ func TestAggregatorComplexPipeline(t *testing.T) {
 			buildFn: func() *aggregator.Aggregator[any] {
 				return aggregator.NewAggregator[any](client, "testdb", "users").
 					Match(bson.M{"tags": bson.M{"$exists": true, "$ne": nil}}).
-					Unwind("$tags").
+					Unwind("tags").
 					Group("$tags", bson.M{
 						"user_count": bson.M{"$sum": 1},
 						"users":      bson.M{"$push": "$name"},

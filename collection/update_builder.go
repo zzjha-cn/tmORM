@@ -3,23 +3,12 @@ package collection
 import (
 	"context"
 	tmorm "github.com/zzjha-cn/tm_orm"
+	"github.com/zzjha-cn/tm_orm/impl"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
-
-// IUpdateOperation 更新操作接口
-type IUpdateOperation interface {
-	// GetBsonD 获取 BSON 文档
-	GetBsonD() bson.D
-	// AddOperation 添加操作
-	AddOperation(op string, field string, value any)
-	// HasOperation 检查是否存在操作
-	HasOperation(op string) bool
-	// GetOperation 获取特定操作的值
-	GetOperation(op string) (bson.D, bool)
-}
 
 // DefaultUpdateOperation 默认更新操作实现
 type DefaultUpdateOperation struct {
@@ -27,7 +16,7 @@ type DefaultUpdateOperation struct {
 }
 
 // NewUpdateOperation 创建新的更新操作
-func NewUpdateOperation() IUpdateOperation {
+func NewUpdateOperation() impl.IUpdateOperation {
 	return &DefaultUpdateOperation{
 		updates: bson.D{},
 	}
@@ -76,7 +65,7 @@ func (d *DefaultUpdateOperation) GetOperation(op string) (bson.D, bool) {
 // UpdateBuilder 更新构建器
 type UpdateBuilder[T any] struct {
 	collection *Collection[T]
-	updates    IUpdateOperation
+	updates    impl.IUpdateOperation
 }
 
 // NewUpdateBuilder 创建新的更新构建器
@@ -88,7 +77,7 @@ func NewUpdateBuilder[T any](collection *Collection[T]) *UpdateBuilder[T] {
 }
 
 // GetUpdates 获取更新操作接口（用于测试）
-func (u *UpdateBuilder[T]) GetUpdates() IUpdateOperation {
+func (u *UpdateBuilder[T]) GetUpdates() impl.IUpdateOperation {
 	return u.updates
 }
 
@@ -178,13 +167,14 @@ func (u *UpdateBuilder[T]) Update(ctx context.Context, opts ...*options.UpdateOp
 			filter = mctx.Operation.GetBsonD()
 		}
 
-		res, err := u.collection.client.Database(u.collection.DBName).MongoDatabase().Collection(u.collection.CollectionName).UpdateMany(ctx, filter, u.updates.GetBsonD(), opts...)
+		res, err := u.collection.client.Database(mctx.DBName).MongoDatabase().Collection(mctx.CollectionName).UpdateMany(ctx, filter, u.updates.GetBsonD(), opts...)
 		mctx.Result = &tmorm.MResult{Val: res, Err: err}
 		next(mctx)
 	}
 
-	mctx := tmorm.NewMiddleContext(ctx, UpdateManyMtd)
+	mctx := tmorm.NewMiddleContext(ctx, tmorm.UpdateManyMtd, u.collection.DBName, u.collection.CollectionName)
 	mctx.Operation = u.collection.filter
+	mctx.UpdateOp = u.updates
 
 	tmorm.Executor(mctx, u.collection.combineChain(r))
 	res := mctx.Result
@@ -202,13 +192,14 @@ func (u *UpdateBuilder[T]) UpdateOne(ctx context.Context, opts ...*options.Updat
 			filter = mctx.Operation.GetBsonD()
 		}
 
-		res, err := u.collection.client.Database(u.collection.DBName).MongoDatabase().Collection(u.collection.CollectionName).UpdateOne(ctx, filter, u.updates.GetBsonD(), opts...)
+		res, err := u.collection.client.Database(mctx.DBName).MongoDatabase().Collection(mctx.CollectionName).UpdateOne(ctx, filter, u.updates.GetBsonD(), opts...)
 		mctx.Result = &tmorm.MResult{Val: res, Err: err}
 		next(mctx)
 	}
 
-	mctx := tmorm.NewMiddleContext(ctx, UpdateOneMtd)
+	mctx := tmorm.NewMiddleContext(ctx, tmorm.UpdateOneMtd, u.collection.DBName, u.collection.CollectionName)
 	mctx.Operation = u.collection.filter
+	mctx.UpdateOp = u.updates
 
 	tmorm.Executor(mctx, u.collection.combineChain(r))
 	res := mctx.Result

@@ -438,7 +438,7 @@ func BenchmarkJoinQuery(b *testing.B) {
 			_, err := agg.
 				Match(bson.M{"status": "completed"}).
 				Lookup(benchColl, "user_id", "_id", "user_info").
-				Unwind("$user_info", true).
+				Unwind("user_info", true).
 				Project(bson.M{
 					"_id":        1,
 					"amount":     1,

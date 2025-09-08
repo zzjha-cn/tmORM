@@ -1,5 +1,28 @@
 package tmorm
 
+type MethodTyp string
+
+var (
+	FindMtd     MethodTyp = "Find"
+	FindOneMtd  MethodTyp = "FindOne"
+	CountMtd    MethodTyp = "Count"
+	DistinctMtd MethodTyp = "Distinct"
+
+	InsertOneMtd  MethodTyp = "InsertOne"
+	InsertManyMtd MethodTyp = "InsertMany"
+
+	UpdateOneMtd  MethodTyp = "UpdateOne"
+	UpdateManyMtd MethodTyp = "UpdateMany"
+	ReplaceOneMtd MethodTyp = "ReplaceOne"
+	UpsertOneMtd  MethodTyp = "UpsertOne"
+
+	DeleteOneMtd  MethodTyp = "DeleteOne"
+	DeleteManyMtd MethodTyp = "DeleteMany"
+
+	AggregateMtd    MethodTyp = "Aggregate"
+	AggregateRawMtd MethodTyp = "AggregeteRaw"
+)
+
 const (
 	// 操作符
 	IdOp                 = "_id"
