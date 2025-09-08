@@ -1,3 +1,7 @@
+<p align="right">
+   <strong>中文</strong> | <a href="./README_EN.md">English</a>
+</p>
+
 # tmORM
 
 tmORM是一个轻量级的MongoDB ORM框架，提供了简洁而强大的API来操作MongoDB数据库。支持链式调用、类型安全的查询构建器、更新操作和聚合表达式等特性。
