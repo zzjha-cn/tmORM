@@ -23,7 +23,6 @@ tmORM是一个轻量级的MongoDB ORM框架，提供了简洁而强大的API来�
 - [x] 完成端到端测试
 - [x] 查询的错误处理增强，支持错误分类与错误回调
 - [ ] 完成Agg stage阶段的各个常用命令封装（https://www.mongodb.com/zh-cn/docs/manual/reference/operator/aggregation/sort/）
-- [ ] 完成集成测试
 - [ ] 增加元数据管理中心
 - [ ] 增加原子化操作
 - [ ] 增加结果集处理封装
@@ -32,8 +31,92 @@ tmORM是一个轻量级的MongoDB ORM框架，提供了简洁而强大的API来�
 ```
 goos: darwin
 goarch: arm64
-
-
+pkg: github.com/zzjha-cn/tm_orm/test
+BenchmarkBasicQuery
+BenchmarkBasicQuery/ORM-SimpleQuery
+BenchmarkBasicQuery/ORM-SimpleQuery-8         	      12	  91372882 ns/op	14673922 B/op	  390403 allocs/op
+BenchmarkBasicQuery/Native-SimpleQuery
+BenchmarkBasicQuery/Native-SimpleQuery-8      	      13	  89366000 ns/op	21671820 B/op	  380370 allocs/op
+BenchmarkComplexQuery
+BenchmarkComplexQuery/ORM-ComplexQuery
+BenchmarkComplexQuery/ORM-ComplexQuery-8      	      12	  94856938 ns/op	14675226 B/op	  390509 allocs/op
+BenchmarkComplexQuery/Native-ComplexQuery
+BenchmarkComplexQuery/Native-ComplexQuery-8   	      14	  76689161 ns/op	16657950 B/op	  296384 allocs/op
+BenchmarkUpdate
+BenchmarkUpdate/ORM-Update
+BenchmarkUpdate/ORM-Update-8                  	     295	  11141763 ns/op	    7690 B/op	     128 allocs/op
+BenchmarkUpdate/Native-Update
+BenchmarkUpdate/Native-Update-8               	     306	   4011816 ns/op	    6079 B/op	      91 allocs/op
+BenchmarkInsert
+BenchmarkInsert/ORM-InsertOne
+BenchmarkInsert/ORM-InsertOne-8               	   13258	     88546 ns/op	    7363 B/op	     123 allocs/op
+BenchmarkInsert/Native-InsertOne
+BenchmarkInsert/Native-InsertOne-8            	   13843	     84566 ns/op	    6046 B/op	      88 allocs/op
+BenchmarkInsert/ORM-InsertMany
+BenchmarkInsert/ORM-InsertMany-8              	     889	   3823420 ns/op	  255304 B/op	    4480 allocs/op
+BenchmarkJoinQuery
+BenchmarkJoinQuery/ORM-LookupJoin
+BenchmarkJoinQuery/ORM-LookupJoin-8           	      19	  62841002 ns/op	 2022170 B/op	   39921 allocs/op
+BenchmarkJoinQuery/Native-LookupJoin
+BenchmarkJoinQuery/Native-LookupJoin-8        	      16	  63172367 ns/op	 2445467 B/op	   53703 allocs/op
+BenchmarkRepository
+BenchmarkRepository/Repository-FindByID
+BenchmarkRepository/Repository-FindByID-8     	   12176	     97524 ns/op	    9287 B/op	     142 allocs/op
+BenchmarkRepository/Repository-FindPage
+BenchmarkRepository/Repository-FindPage-8     	     532	   5194989 ns/op	   40738 B/op	     943 allocs/op
+BenchmarkRepository/Repository-UpdateByID
+BenchmarkRepository/Repository-UpdateByID-8   	   10280	    110071 ns/op	    7657 B/op	     132 allocs/op
+BenchmarkConcurrent
+BenchmarkConcurrent/ORM-ConcurrentRead
+BenchmarkConcurrent/ORM-ConcurrentRead-8      	      26	  62581518 ns/op	39395269 B/op	 1025371 allocs/op
+BenchmarkConcurrent/ORM-ConcurrentWrite
+BenchmarkConcurrent/ORM-ConcurrentWrite-8     	   35160	     33733 ns/op	    7372 B/op	     123 allocs/op
+BenchmarkConcurrent/ORM-ConcurrentUpdate
+BenchmarkConcurrent/ORM-ConcurrentUpdate-8    	     177	   7399120 ns/op	    7634 B/op	     129 allocs/op
+BenchmarkMemoryUsage
+BenchmarkMemoryUsage/ORM-LargeResultSet
+BenchmarkMemoryUsage/ORM-LargeResultSet-8     	       2	 687059896 ns/op	136147088 B/op	 3514824 allocs/op
+BenchmarkMemoryUsage/ORM-StreamingQuery
+BenchmarkMemoryUsage/ORM-StreamingQuery-8     	       8	 137702141 ns/op	14462405 B/op	  392079 allocs/op
+BenchmarkComplexConditions
+BenchmarkComplexConditions/ORM-MultipleConditions
+BenchmarkComplexConditions/ORM-MultipleConditions-8         	       3	 335019486 ns/op	56357880 B/op	 1458175 allocs/op
+BenchmarkComplexConditions/Native-MultipleConditions
+BenchmarkComplexConditions/Native-MultipleConditions-8      	       6	 205371618 ns/op	45832770 B/op	  779018 allocs/op
+BenchmarkComplexConditions/ORM-RegexQuery
+BenchmarkComplexConditions/ORM-RegexQuery-8                 	       3	 382153375 ns/op	75060738 B/op	 1956364 allocs/op
+BenchmarkIndexPerformance
+BenchmarkIndexPerformance/ORM-IndexedQuery
+BenchmarkIndexPerformance/ORM-IndexedQuery-8                	      44	  32730887 ns/op	 4804644 B/op	  130477 allocs/op
+BenchmarkIndexPerformance/ORM-NonIndexedQuery
+BenchmarkIndexPerformance/ORM-NonIndexedQuery-8             	      24	  47871872 ns/op	    8132 B/op	     105 allocs/op
+BenchmarkIndexPerformance/ORM-CompoundIndexQuery
+BenchmarkIndexPerformance/ORM-CompoundIndexQuery-8          	       1	1599281500 ns/op	240992136 B/op	 6243937 allocs/op
+BenchmarkDelete
+BenchmarkDelete/ORM-DeleteMany
+BenchmarkDelete/ORM-DeleteMany-8                            	   12594	     96674 ns/op	    5843 B/op	      95 allocs/op
+BenchmarkDelete/Native-DeleteMany
+BenchmarkDelete/Native-DeleteMany-8                         	   13174	     94205 ns/op	    4384 B/op	      60 allocs/op
+BenchmarkDelete/ORM-DeleteOne
+BenchmarkDelete/ORM-DeleteOne-8                             	    8694	    126434 ns/op	    5842 B/op	      95 allocs/op
+BenchmarkPagination
+BenchmarkPagination/ORM-Pagination
+BenchmarkPagination/ORM-Pagination-8                        	     498	   2897570 ns/op	   38169 B/op	     931 allocs/op
+BenchmarkPagination/Native-Pagination
+BenchmarkPagination/Native-Pagination-8                     	     438	   3315105 ns/op	   45480 B/op	     872 allocs/op
+BenchmarkCount
+BenchmarkCount/ORM-Count
+BenchmarkCount/ORM-Count-8                                  	      58	  18980491 ns/op	    7609 B/op	     118 allocs/op
+BenchmarkCount/Native-Count
+BenchmarkCount/Native-Count-8                               	      13	  82383907 ns/op	    6720 B/op	      82 allocs/op
+BenchmarkAggregate
+BenchmarkAggregate/ORM-SimpleAggregate
+BenchmarkAggregate/Native-SimpleAggregate
+BenchmarkAggregate/Native-SimpleAggregate-8                 	      24	  48347632 ns/op	   65619 B/op	    1276 allocs/op
+BenchmarkAggregate/ORM-ComplexAggregate
+BenchmarkAggregate/ORM-ComplexAggregate-8                   	      21	  51887315 ns/op	   25726 B/op	     417 allocs/op
+BenchmarkAggregate/Native-ComplexAggregate
+BenchmarkAggregate/Native-ComplexAggregate-8                	      21	  52452042 ns/op	   21222 B/op	     439 allocs/op
 ```
 
 ## 安装
@@ -47,20 +130,21 @@ go get github.com/zzjha-cn/tmORM
 ```go
 import (
     "context"
-    "github.com/tmORM/tmorm"
-    "github.com/tmORM/collection"
+    tmorm "github.com/zzjha-cn/tm_orm"
+    "github.com/zzjha-cn/tm_orm/collection"
     "go.mongodb.org/mongo-driver/mongo"
     "go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // 创建 MongoDB 客户端
-client, err := mongo.Connect(context.Background(), options.Client().ApplyURI("mongodb://localhost:27017"))
+client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI("mongodb://localhost:27017"))
 if err != nil {
     panic(err)
 }
 
 // 创建 ORM 客户端
-ormClient, err := tmorm.NewORMClient(client)
+config := tmorm.DefaultClientConfig("mongodb://localhost:27017")
+ormClient, err := tmorm.NewORMClient(config)
 if err != nil {
     panic(err)
 }
@@ -69,7 +153,7 @@ if err != nil {
 
 ```go
 import (
-    "github.com/tmORM/collection"
+    "github.com/zzjha-cn/tm_orm/collection"
     "go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -131,19 +215,23 @@ users, err := coll.Filter(filter).Find(ctx)
 
 #### 表达式查询
 ```go
-import "github.com/tmORM/expression"
+import "github.com/zzjha-cn/tm_orm/expression"
 
 // 使用表达式构建复杂查询
-expr := expression.NewAggregationExpression().
-    Or(
-        expr.Eq(expr.Field("name"), "sean"),
-        expr.And(
-            expr.Gt(expr.Field("age"), 25),
-            expr.Regex(expr.Field("email"), "@company.com$"),
-        ),
-    )
+expr := expression.NewExpression().Field("name").Eq("sean").
+    Or().Field("age").Gt(25).And().Field("email").Regex("@company.com$")
 
 users, err := coll.WhereExpr(expr).Find(ctx)
+
+// 或者使用组合表达式
+expr1 := expression.NewExpression().Field("name").Eq("sean")
+expr2 := expression.NewExpression().Field("age").Gt(25)
+combinedExpr := expression.Or(expr1, expr2)
+
+users, err := coll.WhereExpr(combinedExpr).Find(ctx)
+
+// 使用链式表达式构建器
+users, err := coll.Expr("age").Gt(25).And("status").Eq("active").Find(ctx)
 ```
 
 ### 更新操作
@@ -181,7 +269,7 @@ result, err := coll.Where("_id").Eq(userID).
     UpdateOne(ctx)
 
 // 使用 UpdateBuilder 进行复杂更新
-import "github.com/tmORM/collection"
+import "github.com/zzjha-cn/tm_orm/collection"
 
 builder := collection.NewUpdateBuilder().
     Set("name", "new name").
@@ -226,7 +314,7 @@ result, err := coll.Where("age").Lt(18).Delete(ctx)
 ### Repository 模式
 
 ```go
-import "github.com/tmORM/repo"
+import "github.com/zzjha-cn/tm_orm/repo"
 
 // 创建 Repository
 repo := repo.NewRepository[User](ormClient, "mydb", "users")
@@ -260,7 +348,7 @@ count, err := repo.Count(ctx)
 ### 聚合操作
 
 ```go
-import "github.com/tmORM/aggregator"
+import "github.com/zzjha-cn/tm_orm/aggregator"
 
 // 创建聚合器
 agg := aggregator.NewAggregator[User](ormClient, "mydb", "users")
@@ -268,12 +356,11 @@ agg := aggregator.NewAggregator[User](ormClient, "mydb", "users")
 // 基本聚合操作
 results, err := agg.
     Match(bson.M{"age": bson.M{"$gte": 18}}).
-    Group(bson.M{
-        "_id": "$department",
+    Group("$department", bson.M{
         "avgAge": bson.M{"$avg": "$age"},
         "count": bson.M{"$sum": 1},
     }).
-    Sort(bson.M{"avgAge": -1}).
+    SortDesc("avgAge").
     Execute(ctx)
 
 if err != nil {
@@ -288,7 +375,7 @@ results, err := agg.
         "age": 1,
         "ageGroup": bson.M{
             "$cond": bson.M{
-                "if":   bson.M{"$lt": []interface{}{"$age", 30}},
+                "if":   bson.M{"$lt": []any{"$age", 30}},
                 "then": "young",
                 "else": "senior",
             },
@@ -307,7 +394,7 @@ orderAgg := aggregator.NewAggregator[OrderResult](ormClient, "mydb", "orders")
 orders, err := orderAgg.
     Match(bson.M{"status": "completed"}).
     Lookup("users", "user_id", "_id", "user_info").
-    Unwind("user_info", true).
+    Unwind("$user_info").
     Project(bson.M{
         "_id": 1,
         "amount": 1,
@@ -322,21 +409,20 @@ orders, err := orderAgg.
 results, err := agg.
     Match(bson.M{"age": bson.M{"$gte": 20}}).
     Group(bson.M{
-        "_id": bson.M{
-            "department": "$department",
-            "ageRange": bson.M{
-                "$cond": bson.M{
-                    "if":   bson.M{"$lte": []interface{}{"$age", 25}},
-                    "then": "young",
-                    "else": "senior",
-                },
+        "department": "$department",
+        "ageRange": bson.M{
+            "$cond": bson.M{
+                "if":   bson.M{"$lte": []any{"$age", 25}},
+                "then": "young",
+                "else": "senior",
             },
         },
+    }, bson.M{
         "avgAge": bson.M{"$avg": "$age"},
         "names":  bson.M{"$push": "$name"},
         "count":  bson.M{"$sum": 1},
     }).
-    Sort(bson.M{"avgAge": -1}).
+    SortDesc("avgAge").
     Execute(ctx)
 
 // 分面聚合 (Facet)
@@ -366,48 +452,50 @@ page := int64(1)
 pageSize := int64(10)
 results, total, err := agg.
     Match(bson.M{"age": bson.M{"$gte": 18}}).
-    Sort(bson.M{"name": 1}).
+    SortAsc("name").
     Paginate(ctx, page, pageSize)
 ```
 
 ### 中间件使用
 
 ```go
-import "github.com/tmORM/middleware"
+import (
+    "context"
+    "fmt"
+    "time"
+    tmorm "github.com/zzjha-cn/tm_orm"
+    "github.com/zzjha-cn/tm_orm/collection"
+)
 
-// 创建带中间件的 ORM 客户端
-slowQueryMiddleware := middleware.NewSlowQueryMiddleware(100 * time.Millisecond)
-loggingMiddleware := func(next tmorm.MiddlewareFunc) tmorm.MiddlewareFunc {
-    return func(ctx context.Context, operation string, args ...interface{}) (interface{}, error) {
-        start := time.Now()
-        fmt.Printf("[%s] Starting operation: %s\n", start.Format(time.RFC3339), operation)
+// 创建自定义中间件
+loggingMiddleware := func(mctx *tmorm.MiddleCtx, next func(m *tmorm.MiddleCtx)) {
+    start := time.Now()
+    fmt.Printf("[%s] Starting operation: %s\n", start.Format(time.RFC3339), mctx.Typ)
 
-        result, err := next(ctx, operation, args...)
+    next(mctx)
 
-        duration := time.Since(start)
-        if err != nil {
-            fmt.Printf("[%s] Operation %s failed after %v: %v\n",
-                time.Now().Format(time.RFC3339), operation, duration, err)
-        } else {
-            fmt.Printf("[%s] Operation %s completed in %v\n",
-                time.Now().Format(time.RFC3339), operation, duration)
-        }
-
-        return result, err
+    duration := time.Since(start)
+    if mctx.Result.Err != nil {
+        fmt.Printf("[%s] Operation %s failed after %v: %v\n",
+            time.Now().Format(time.RFC3339), mctx.Typ, duration, mctx.Result.Err)
+    } else {
+        fmt.Printf("[%s] Operation %s completed in %v\n",
+            time.Now().Format(time.RFC3339), mctx.Typ, duration)
     }
 }
 
 // 创建带中间件的 ORM 客户端
-ormClient, err := tmorm.NewORMClient(mongoClient, slowQueryMiddleware, loggingMiddleware)
+config := tmorm.DefaultClientConfig()
+config.URI = "mongodb://localhost:27017"
+ormClient, err := tmorm.NewORMClient(config)
 if err != nil {
     panic(err)
 }
 
-// 也可以为collection创建中间件
+// 为collection创建中间件
 coll := collection.NewCollection[User](ormClient, "mydb", "users", loggingMiddleware)
 
 // 所有通过此客户端的操作都会经过中间件处理
-coll := collection.NewCollection[User](ormClient, "mydb", "users")
 users, err := coll.Where("age").Gte(18).Find(ctx) // 会触发中间件
 ```
 

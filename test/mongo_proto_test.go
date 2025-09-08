@@ -303,8 +303,7 @@ func ConnectMongo() {
 
 	err = client.Ping(ctx, nil)
 	if nil != err {
-		fmt.Println(err)
-		return
+		panic(err)
 	}
 	MongoClient = client
 }
