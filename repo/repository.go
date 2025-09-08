@@ -49,7 +49,7 @@ func (r *Repository[T]) CreateMany(ctx context.Context, docs []*T) (*mongo.Inser
 // UpdateByID 根据ID更新文档
 func (r *Repository[T]) UpdateByID(ctx context.Context, id any, updates map[string]any) (*mongo.UpdateResult, error) {
 	var updateBuilder *collection2.UpdateBuilder[T]
-	
+
 	// 构建更新操作
 	for field, value := range updates {
 		if updateBuilder == nil {
@@ -58,7 +58,7 @@ func (r *Repository[T]) UpdateByID(ctx context.Context, id any, updates map[stri
 			updateBuilder = updateBuilder.Set(field, value)
 		}
 	}
-	
+
 	if updateBuilder == nil {
 		return nil, mongo.ErrNoDocuments
 	}
@@ -116,6 +116,7 @@ type BaseModel struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	CreatedAt primitive.DateTime `bson:"created_at" json:"created_at"`
 	UpdatedAt primitive.DateTime `bson:"updated_at" json:"updated_at"`
+	Deleted   bool               `bson:"deleted" json:"deleted"`
 }
 
 // GetID 获取文档ID
@@ -158,7 +159,7 @@ func (r *BaseRepository[T]) FindOneByField(ctx context.Context, field string, va
 // UpdateByField 根据字段更新文档
 func (r *BaseRepository[T]) UpdateByField(ctx context.Context, field string, fieldValue any, updates map[string]any) (*mongo.UpdateResult, error) {
 	var updateBuilder *collection2.UpdateBuilder[T]
-	
+
 	// 构建更新操作
 	for updateField, updateValue := range updates {
 		if updateBuilder == nil {
@@ -167,7 +168,7 @@ func (r *BaseRepository[T]) UpdateByField(ctx context.Context, field string, fie
 			updateBuilder = updateBuilder.Set(updateField, updateValue)
 		}
 	}
-	
+
 	if updateBuilder == nil {
 		return nil, mongo.ErrNoDocuments
 	}

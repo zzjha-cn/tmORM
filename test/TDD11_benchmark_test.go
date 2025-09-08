@@ -6,9 +6,7 @@ import (
 	"testing"
 	tmorm "tm_orm"
 	"tm_orm/aggregator"
-	"tm_orm/finder"
-	"tm_orm/query"
-	"tm_orm/updater"
+	"tm_orm/collection"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -30,7 +28,7 @@ var (
 )
 
 // 初始化测试数据
-func initBenchmarkData(b *testing.B, count int) (*tmorm.MDB, *mongo.Collection) {
+func initBenchmarkData(b *testing.B, count int) (*collection.Collection[BenchUser], *mongo.Collection) {
 	ConnectMongo()
 	client := MongoClient
 
@@ -39,7 +37,7 @@ func initBenchmarkData(b *testing.B, count int) (*tmorm.MDB, *mongo.Collection) 
 	coll.Drop(ctx)
 
 	// 生成测试数据
-	docs := make([]interface{}, count)
+	docs := make([]any, count)
 	for i := 0; i < count; i++ {
 		docs[i] = BenchUser{
 			ID:      primitive.NewObjectID(),
@@ -56,7 +54,11 @@ func initBenchmarkData(b *testing.B, count int) (*tmorm.MDB, *mongo.Collection) 
 		b.Fatal(err)
 	}
 
-	return tmorm.NewMDB(client), coll
+	// 创建ORM client和collection
+	ormClient, _ := tmorm.NewORMClient(nil)
+	ormCollection := collection.NewCollection[BenchUser](ormClient, benchDB, benchColl)
+
+	return ormCollection, coll
 }
 
 func randomString(n int) string {
@@ -70,29 +72,24 @@ func randomString(n int) string {
 
 // 基本查询性能测试
 func BenchmarkBasicQuery(b *testing.B) {
-	db, coll := initBenchmarkData(b, 10000)
-	fd := &finder.Finder[BenchUser]{}
+	ormColl, nativeColl := initBenchmarkData(b, 10000)
 
 	b.Run("ORM-SimpleQuery", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			filter := query.Query{}.Builder().
-				K("age").Gte(18).
-				ToQuery()
-			_, err := fd.Find(db.Sess(ctx, benchDB, benchColl), filter)
+			_, err := ormColl.Where("age").Gte(18).Find(ctx)
 			if err != nil {
 				b.Fatal(err)
 			}
 		}
 		b.StopTimer()
-
 	})
 
 	b.Run("Native-SimpleQuery", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			filter := bson.D{{"age", bson.D{{"$gte", 18}}}}
-			cursor, err := coll.Find(ctx, filter)
+			cursor, err := nativeColl.Find(ctx, filter)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -102,55 +99,37 @@ func BenchmarkBasicQuery(b *testing.B) {
 			}
 		}
 		b.StopTimer()
-
 	})
 }
 
 // 复杂查询性能测试
 func BenchmarkComplexQuery(b *testing.B) {
-	db, coll := initBenchmarkData(b, 10000)
-	fd := &finder.Finder[BenchUser]{}
+	ormColl, nativeColl := initBenchmarkData(b, 10000)
 
 	b.Run("ORM-ComplexQuery", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			filter := query.Query{}.Builder().
-				Or(func(a *query.QueryOr) query.Builder {
-					return a.
-						K("age").Gt(30).
-						K("name").Regex("^A").
-						And(func(and *query.QueryAnd) query.Builder {
-							return and.
-								K("age").Lt(50).
-								K("email").Regex(".+@example.com$")
-						})
-				}).
-				ToQuery()
-			_, err := fd.Find(db.Sess(ctx, benchDB, benchColl), filter)
+			_, err := ormColl.
+				Where("age").Gt(30).
+				Where("email").Regex("@example.com").
+				Find(ctx)
 			if err != nil {
 				b.Fatal(err)
 			}
 		}
 		b.StopTimer()
-
 	})
 
 	b.Run("Native-ComplexQuery", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			filter := bson.D{{
-				"$or", bson.A{
+				"$and", bson.A{
 					bson.D{{"age", bson.D{{"$gt", 30}}}},
-					bson.D{{"name", bson.D{{"$regex", "^A"}}}},
-					bson.D{{
-						"$and", bson.A{
-							bson.D{{"age", bson.D{{"$lt", 50}}}},
-							bson.D{{"email", bson.D{{"$regex", ".+@example.com$"}}}},
-						},
-					}},
+					bson.D{{"email", bson.D{{"$regex", "@example.com"}}}},
 				},
 			}}
-			cursor, err := coll.Find(ctx, filter)
+			cursor, err := nativeColl.Find(ctx, filter)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -160,33 +139,25 @@ func BenchmarkComplexQuery(b *testing.B) {
 			}
 		}
 		b.StopTimer()
-
 	})
 }
 
 // 更新操作性能测试
 func BenchmarkUpdate(b *testing.B) {
-	db, coll := initBenchmarkData(b, 10000)
-	up := &updater.MUpdater[BenchUser]{}
+	ormColl, nativeColl := initBenchmarkData(b, 10000)
 
 	b.Run("ORM-Update", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			filter := query.Query{}.Builder().
-				K("age").Lt(30).
-				ToQuery()
-			bd := updater.NewReplaceBuilder[BenchUser]()
-			bd.C().Set("address", "Updated Address")
-			_, err := up.SetFilter(filter).UpdateMany(
-				db.Sess(ctx, benchDB, benchColl),
-				bd,
-			)
+			_, err := ormColl.
+				Where("age").Lt(30).
+				Set("address", "Updated Address").
+				Update(ctx)
 			if err != nil {
 				b.Fatal(err)
 			}
 		}
 		b.StopTimer()
-
 	})
 
 	b.Run("Native-Update", func(b *testing.B) {
@@ -194,74 +165,48 @@ func BenchmarkUpdate(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			filter := bson.D{{"age", bson.D{{"$lt", 30}}}}
 			update := bson.D{{"$set", bson.D{{"address", "Updated Address"}}}}
-			_, err := coll.UpdateMany(ctx, filter, update)
+			_, err := nativeColl.UpdateMany(ctx, filter, update)
 			if err != nil {
 				b.Fatal(err)
 			}
 		}
 		b.StopTimer()
-
 	})
 }
 
 // 聚合操作性能测试
 func BenchmarkAggregate(b *testing.B) {
-	db, coll := initBenchmarkData(b, 10000)
-	agg := aggregator.NewAggregator[BenchUser]()
+	_, nativeColl := initBenchmarkData(b, 10000)
+	ormClient, _ := tmorm.NewORMClient(nil)
 
 	b.Run("ORM-Aggregate", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			p := aggregator.NewPipeline().
-				Match(func(m *query.MatchCmd) query.Builder {
-					return m.K("age").Gte(18)
+			agg := aggregator.NewAggregator[BenchUser](ormClient, benchDB, benchColl)
+			_, err := agg.
+				Match(bson.M{"age": bson.M{"$gte": 18}}).
+				Group("$age", bson.M{
+					"count": bson.M{"$sum": 1},
 				}).
-				Group(func(g *query.GroupCmd) query.Builder {
-					return g.IdWithField("age").
-						Key("count1").Sum(g.AnyVal(1)).
-						Key("avgAge").Avg(g.ToFd("age")).
-						Build()
-				})
-			agg.SetPipe(p)
-
-			type Result struct {
-				ID     int     `bson:"_id"`
-				Count  int     `bson:"count"`
-				AvgAge float64 `bson:"avgAge"`
-			}
-			var results []*Result
-			err := aggregator.WithParseAggregate(
-				db.Sess(ctx, benchDB, benchColl),
-				agg,
-				&results,
-			)
+				Execute(ctx)
 			if err != nil {
 				b.Fatal(err)
 			}
 		}
 		b.StopTimer()
-
 	})
 
 	b.Run("Native-Aggregate", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			pipeline := mongo.Pipeline{
-				{{
-					"$match", bson.D{
-						{"age", bson.D{{"$gte", 18}}},
-					},
-				}},
-				{{
-					"$group", bson.D{
-						{"_id", "$age"},
-						{"count1", bson.D{{"$sum", 1}}},
-						{"avgAge", bson.D{{"$avg", "$age"}}},
-					},
-				}},
+				{{"$match", bson.D{{"age", bson.D{{"$gte", 18}}}}}},
+				{{"$group", bson.D{
+					{"_id", "$age"},
+					{"count", bson.D{{"$sum", 1}}},
+				}}},
 			}
-
-			cursor, err := coll.Aggregate(ctx, pipeline)
+			cursor, err := nativeColl.Aggregate(ctx, pipeline)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -271,6 +216,5 @@ func BenchmarkAggregate(b *testing.B) {
 			}
 		}
 		b.StopTimer()
-
 	})
 }

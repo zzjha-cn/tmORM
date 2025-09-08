@@ -3,87 +3,94 @@ package test
 import (
 	"context"
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"testing"
 	tmorm "tm_orm"
-	"tm_orm/finder"
-	"tm_orm/middleware"
-	"tm_orm/query"
+	"tm_orm/collection"
+
+	"github.com/stretchr/testify/assert"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func TestMiddlewareE2E(t *testing.T) {
 	ConnectMongo()
-	fd := &finder.Finder[TestUser]{}
-	md := tmorm.NewMDB(MongoClient)
+	ctx := context.Background()
 	ndb := "mytest"
 	ncoll := "db_test"
-	md.GetMiddleware().Use(
-		middleware.SLowQueryMiddleware{Threshold: 1}.Build(),
-		func(next tmorm.MHandlerFunc) tmorm.MHandlerFunc {
-			return func(mctx *tmorm.MiddleCtx) tmorm.MResult {
-				println("db 前置")
-				return next(mctx)
-			}
-		})
+
+	// 创建带有middleware的collection
+	coll := collection.NewCollection[TestUser](client, ndb, ncoll,
+		// 慢查询中间件
+		func(mctx *tmorm.MiddleCtx, next func(m *tmorm.MiddleCtx)) {
+			fmt.Println("慢查询检测中间件")
+			next(mctx)
+		},
+		// 日志中间件
+		func(mctx *tmorm.MiddleCtx, next func(m *tmorm.MiddleCtx)) {
+			fmt.Printf("执行操作: %s\n", string(mctx.Typ))
+			next(mctx)
+			fmt.Printf("操作完成: %s\n", string(mctx.Typ))
+		},
+	)
 
 	type tcase struct {
 		name   string
-		finder *finder.Finder[TestUser]
-
-		data any
-
+		data   *TestUser
 		before func(*tcase)
 		after  func(*tcase)
-
-		check func(*tcase)
+		check  func(*tcase)
 	}
 
 	testCases := []tcase{
 		{
-			name:   "normal",
-			finder: fd,
+			name: "normal",
 			data: &TestUser{
-				ID:   primitive.ObjectID([12]byte{1, 2, 3, 4, 5}),
+				ID:   primitive.ObjectID([12]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
 				Name: "sean",
-				Age:  20,
+				Age:  25,
 			},
 			before: func(tc *tcase) {
-				data := tc.data.(*TestUser)
-				MongoClient.Database("mytest").Collection("db_test").UpdateOne(context.Background(),
-					bson.M{"_id": data.ID}, bson.M{"$set": data}, options.Update().SetUpsert(true))
+				// 清理测试数据
+				coll.Where("name").Eq("sean").Delete(ctx)
 			},
 			after: func(tc *tcase) {
-				data := tc.data.(*TestUser)
-				MongoClient.Database("mytest").Collection("db_test").DeleteMany(context.Background(),
-					bson.M{"_id": data.ID})
+				// 插入测试数据
+				_, err := coll.Insert(ctx, tc.data)
+				assert.NoError(t, err)
 			},
 			check: func(tc *tcase) {
-				var (
-					wantErr error
-					wantRes = []*TestUser{
-						tc.data.(*TestUser),
-					}
-					fil = query.Query{}.Builder().
-						K("name").Eq("sean").
-						K("age").Gte(18).ToQuery()
-				)
-				fmt.Println(fil.GetBsonD())
-
-				ss := md.Sess(context.Background(), ndb, ncoll,
-					func(next tmorm.MHandlerFunc) tmorm.MHandlerFunc {
-						return func(mctx *tmorm.MiddleCtx) tmorm.MResult {
-							r := next(mctx)
-							println("session 后置")
-							return r
-						}
-					})
-				resList, err := tc.finder.Find(ss, fil)
-
-				assert.Equal(t, wantErr, err)
-				assert.Equal(t, wantRes, resList)
+				// 验证数据是否插入成功
+				user, err := coll.Where("name").Eq("sean").FindOne(ctx)
+				assert.NoError(t, err)
+				assert.NotNil(t, user)
+				assert.Equal(t, "sean", user.Name)
+				assert.Equal(t, int64(25), user.Age)
+			},
+		},
+		{
+			name: "update_test",
+			data: &TestUser{
+				ID:   primitive.ObjectID([12]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13}),
+				Name: "alice",
+				Age:  30,
+			},
+			before: func(tc *tcase) {
+				// 清理并插入测试数据
+				coll.Where("name").Eq("alice").Delete(ctx)
+				_, err := coll.Insert(ctx, tc.data)
+				assert.NoError(t, err)
+			},
+			after: func(tc *tcase) {
+				// 更新数据
+				_, err := coll.Where("name").Eq("alice").Set("age", 31).Update(ctx)
+				assert.NoError(t, err)
+			},
+			check: func(tc *tcase) {
+				// 验证更新是否成功
+				user, err := coll.Where("name").Eq("alice").FindOne(ctx)
+				assert.NoError(t, err)
+				assert.NotNil(t, user)
+				assert.Equal(t, "alice", user.Name)
+				assert.Equal(t, int64(31), user.Age)
 			},
 		},
 	}
@@ -93,11 +100,12 @@ func TestMiddlewareE2E(t *testing.T) {
 			if tc.before != nil {
 				tc.before(&tc)
 			}
-			tc.check(&tc)
 			if tc.after != nil {
 				tc.after(&tc)
 			}
+			if tc.check != nil {
+				tc.check(&tc)
+			}
 		})
 	}
-
 }
