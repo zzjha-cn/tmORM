@@ -1,8 +1,8 @@
 package collection
 
 import (
+	tmorm "github.com/zzjha-cn/tm_orm"
 	"go.mongodb.org/mongo-driver/bson"
-	tmorm "tm_orm"
 )
 
 var (

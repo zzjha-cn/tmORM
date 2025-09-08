@@ -2,9 +2,9 @@ package collection
 
 import (
 	"context"
-	tmorm "tm_orm"
-	"tm_orm/expression"
-	"tm_orm/impl"
+	tmorm "github.com/zzjha-cn/tm_orm"
+	"github.com/zzjha-cn/tm_orm/expression"
+	"github.com/zzjha-cn/tm_orm/impl"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"

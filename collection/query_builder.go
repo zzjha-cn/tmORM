@@ -1,8 +1,8 @@
 package collection
 
 import (
-	tmorm "tm_orm"
-	"tm_orm/impl"
+	tmorm "github.com/zzjha-cn/tm_orm"
+	"github.com/zzjha-cn/tm_orm/impl"
 
 	"go.mongodb.org/mongo-driver/bson"
 )

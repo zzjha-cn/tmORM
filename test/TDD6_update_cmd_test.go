@@ -1,9 +1,9 @@
 package test
 
 import (
+	tmorm "github.com/zzjha-cn/tm_orm"
+	"github.com/zzjha-cn/tm_orm/collection"
 	"testing"
-	tmorm "tm_orm"
-	"tm_orm/collection"
 
 	"github.com/stretchr/testify/assert"
 

@@ -2,9 +2,9 @@ package test
 
 import (
 	"context"
+	tmorm "github.com/zzjha-cn/tm_orm"
+	"github.com/zzjha-cn/tm_orm/aggregator"
 	"testing"
-	tmorm "tm_orm"
-	"tm_orm/aggregator"
 
 	"github.com/stretchr/testify/assert"
 	"go.mongodb.org/mongo-driver/bson"

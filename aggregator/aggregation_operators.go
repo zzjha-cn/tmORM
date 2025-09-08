@@ -3,7 +3,7 @@ package aggregator
 import (
 	"time"
 
-	tmorm "tm_orm"
+	tmorm "github.com/zzjha-cn/tm_orm"
 
 	"go.mongodb.org/mongo-driver/bson"
 )

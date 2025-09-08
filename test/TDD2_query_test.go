@@ -1,8 +1,8 @@
 package test
 
 import (
+	"github.com/zzjha-cn/tm_orm/collection"
 	"testing"
-	"tm_orm/collection"
 
 	"go.mongodb.org/mongo-driver/bson"
 

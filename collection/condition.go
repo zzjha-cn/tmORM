@@ -1,6 +1,6 @@
 package collection
 
-import "tm_orm/impl"
+import "github.com/zzjha-cn/tm_orm/impl"
 
 // CollectionFieldCondition 集合字段条件构建器
 // 链式构造：Collection将查询命令的构建委托给CollectionFieldCondition完成，至于CollectionFieldCondition要用什么构建方式，对上层是不可见的。

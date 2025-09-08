@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	tmorm "tm_orm"
-	"tm_orm/collection"
-	"tm_orm/expression"
+	tmorm "github.com/zzjha-cn/tm_orm"
+	"github.com/zzjha-cn/tm_orm/collection"
+	"github.com/zzjha-cn/tm_orm/expression"
 
 	"github.com/stretchr/testify/assert"
 )

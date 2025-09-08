@@ -2,8 +2,8 @@ package repo
 
 import (
 	"context"
-	tmorm "tm_orm"
-	collection2 "tm_orm/collection"
+	tmorm "github.com/zzjha-cn/tm_orm"
+	collection2 "github.com/zzjha-cn/tm_orm/collection"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"

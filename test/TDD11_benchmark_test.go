@@ -2,11 +2,11 @@ package test
 
 import (
 	"context"
+	tmorm "github.com/zzjha-cn/tm_orm"
+	"github.com/zzjha-cn/tm_orm/aggregator"
+	"github.com/zzjha-cn/tm_orm/collection"
 	"math/rand"
 	"testing"
-	tmorm "tm_orm"
-	"tm_orm/aggregator"
-	"tm_orm/collection"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
