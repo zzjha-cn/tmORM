@@ -311,12 +311,12 @@ func TestAdvancedQueries(t *testing.T) {
 	// 复杂查询测试用例
 	advancedTestCases := []struct {
 		name     string
-		setup    func() (interface{}, error)
-		validate func(interface{}) bool
+		setup    func() (any, error)
+		validate func(any) bool
 	}{
 		{
 			name: "复杂条件查询 - 技术部门活跃用户",
-			setup: func() (interface{}, error) {
+			setup: func() (any, error) {
 				// 复杂查询：(Engineering OR IT) AND age 25-45 AND active AND 最近一年注册
 				expr1 := expression.Or(
 					expression.NewExpression().Field("department").Eq("Engineering"),
@@ -327,103 +327,103 @@ func TestAdvancedQueries(t *testing.T) {
 				combinedExpr := expression.And(expr1, expr2, expr3)
 				return userColl.WhereExpr(combinedExpr).Find(ctx)
 			},
-			validate: func(result interface{}) bool {
+			validate: func(result any) bool {
 				users := result.([]*TestUser2)
 				return len(users) == 3 // John, Jane, Alice
 			},
 		},
 		{
 			name: "字符串匹配查询 - 公司邮箱用户",
-			setup: func() (interface{}, error) {
+			setup: func() (any, error) {
 				return userColl.Expr("email").Contains("@company.com").Find(ctx)
 			},
-			validate: func(result interface{}) bool {
+			validate: func(result any) bool {
 				users := result.([]*TestUser2)
 				return len(users) == 3 // John, Jane, Alice
 			},
 		},
 		{
 			name: "数组查询 - 包含特定标签的用户",
-			setup: func() (interface{}, error) {
+			setup: func() (any, error) {
 				return userColl.Expr("tags").All("developer").Find(ctx)
 			},
-			validate: func(result interface{}) bool {
+			validate: func(result any) bool {
 				users := result.([]*TestUser2)
 				return len(users) == 2 // John, Alice
 			},
 		},
 		{
 			name: "薪资范围查询",
-			setup: func() (interface{}, error) {
+			setup: func() (any, error) {
 				return userColl.Expr("salary").Between(70000.0, 90000.0).Find(ctx)
 			},
-			validate: func(result interface{}) bool {
+			validate: func(result any) bool {
 				users := result.([]*TestUser2)
 				return len(users) == 2 // John, Bob
 			},
 		},
 		{
 			name: "产品查询 - 价格范围和库存状态",
-			setup: func() (interface{}, error) {
+			setup: func() (any, error) {
 				expr1 := expression.NewExpression().Field("price").Between(100.0, 500.0)
 				expr2 := expression.NewExpression().Field("in_stock").Eq(true)
 				combinedExpr := expression.And(expr1, expr2)
 				return productColl.WhereExpr(combinedExpr).Find(ctx)
 			},
-			validate: func(result interface{}) bool {
+			validate: func(result any) bool {
 				products := result.([]*TestProduct)
 				return len(products) == 1 // Mechanical Keyboard
 			},
 		},
 		{
 			name: "排序查询 - 按价格降序",
-			setup: func() (interface{}, error) {
+			setup: func() (any, error) {
 				opts := options.Find().SetSort(bson.D{{"price", -1}}).SetLimit(2)
 				return productColl.Expr("in_stock").Eq(true).Find(ctx, opts)
 			},
-			validate: func(result interface{}) bool {
+			validate: func(result any) bool {
 				products := result.([]*TestProduct)
 				return len(products) == 2 && products[0].Price > products[1].Price
 			},
 		},
 		{
 			name: "组合表达式 - Or查询",
-			setup: func() (interface{}, error) {
+			setup: func() (any, error) {
 				expr1 := expression.NewExpression().Field("department").Eq("HR")
 				expr2 := expression.NewExpression().Field("age").Lt(30)
 				return collection.Or(userColl, expr1, expr2).Find(ctx)
 			},
-			validate: func(result interface{}) bool {
+			validate: func(result any) bool {
 				users := result.([]*TestUser2)
 				return len(users) == 2 // Bob (HR), Alice (age < 30)
 			},
 		},
 		{
 			name: "NOT查询 - 非活跃用户",
-			setup: func() (interface{}, error) {
+			setup: func() (any, error) {
 				return userColl.Where("status").Not().Eq("active").Find(ctx)
 			},
-			validate: func(result interface{}) bool {
+			validate: func(result any) bool {
 				users := result.([]*TestUser2)
 				return len(users) == 1 // Bob
 			},
 		},
 		{
 			name: "字段存在性查询",
-			setup: func() (interface{}, error) {
+			setup: func() (any, error) {
 				return userColl.Expr("email").Exists(true).Find(ctx)
 			},
-			validate: func(result interface{}) bool {
+			validate: func(result any) bool {
 				users := result.([]*TestUser2)
 				return len(users) == 4 // 所有用户都有email
 			},
 		},
 		{
 			name: "正则表达式查询 - 邮箱域名",
-			setup: func() (interface{}, error) {
+			setup: func() (any, error) {
 				return userColl.Expr("email").Regex(".*@company\\.com$").Find(ctx)
 			},
-			validate: func(result interface{}) bool {
+			validate: func(result any) bool {
 				users := result.([]*TestUser2)
 				return len(users) == 3 // John, Jane, Alice
 			},
