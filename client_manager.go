@@ -185,24 +185,6 @@ func (cm *ClientManager) TransactionOnDefault(ctx context.Context, fn func(mongo
 	return client.Transaction(ctx, fn, opts...)
 }
 
-//// Collection 从指定客户端获取集合
-//func (cm *ClientManager) Collection(clientName, database, collection string) (*CollectionWrapper, error) {
-//	client, err := cm.GetClient(clientName)
-//	if err != nil {
-//		return nil, err
-//	}
-//	return client.Collection(database, collection), nil
-//}
-//
-//// DefaultCollection 从默认客户端获取集合
-//func (cm *ClientManager) DefaultCollection(database, collection string) (*CollectionWrapper, error) {
-//	client, err := cm.GetDefaultClient()
-//	if err != nil {
-//		return nil, err
-//	}
-//	return client.Collection(database, collection), nil
-//}
-
 // 全局客户端管理器实例
 var (
 	globalManager     *ClientManager

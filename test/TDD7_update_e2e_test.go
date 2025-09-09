@@ -2,8 +2,10 @@ package test
 
 import (
 	"context"
+	"github.com/stretchr/testify/require"
 	tmorm "github.com/zzjha-cn/tm_orm"
 	"github.com/zzjha-cn/tm_orm/collection"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -310,12 +312,12 @@ func TestUpdaterE2E(t *testing.T) {
 					Set("age", data.Age).
 					SetOnInsert("createdBy", "system").
 					CurrentDate("createdAt").
-					UpdateOne(ctx)
+					UpdateOne(ctx, options.Update().SetUpsert(true))
 				assert.NoError(t, err)
 
 				// 验证文档被创建
 				result, err := coll.Where("_id").Eq(data.ID).FindOne(ctx)
-				assert.NoError(t, err)
+				require.Nil(t, err)
 				assert.Equal(t, data.Name, result.Name)
 				assert.Equal(t, data.Age, result.Age)
 			},
