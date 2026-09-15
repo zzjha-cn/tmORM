@@ -42,7 +42,7 @@ func (c *Collection[T]) Where(field string) *CollectionFieldCondition[T] {
 // WhereExpr 使用表达式构建复杂查询条件
 func (c *Collection[T]) WhereExpr(expr *expression.Expression) *Collection[T] {
 	query := &ExpressionQuery{data: expr.Build()}
-	return c.Filter(query)
+	return c.AndFilter(query)
 }
 
 // Expr 创建新的表达式构建器并返回字段表达式
@@ -87,11 +87,66 @@ func Nor[T any](c *Collection[T], expressions ...*expression.Expression) *Collec
 	return c.WhereExpr(combined)
 }
 
-// Filter 使用查询构建器设置过滤条件
+// Filter 直接设置过滤条件，会覆盖之前已有的全部条件。
+// 需要在已有条件上追加时使用 AndFilter。
 func (c *Collection[T]) Filter(query impl.IBsonQuery) *Collection[T] {
 	newCollection := *c
 	newCollection.filter = query
 	return &newCollection
+}
+
+// AndFilter 在已有条件上以 AND 语义追加一个条件。
+// 之前没有条件时等价于 Filter。
+func (c *Collection[T]) AndFilter(query impl.IBsonQuery) *Collection[T] {
+	if query == nil {
+		return c
+	}
+
+	newCollection := *c
+	switch cur := c.filter.(type) {
+	case nil:
+		newCollection.filter = query
+	case *AndQuery:
+		// 展平，避免出现嵌套的 $and
+		parts := make([]impl.IBsonQuery, 0, len(cur.parts)+1)
+		parts = append(parts, cur.parts...)
+		parts = append(parts, query)
+		newCollection.filter = &AndQuery{parts: parts}
+	default:
+		newCollection.filter = &AndQuery{parts: []impl.IBsonQuery{c.filter, query}}
+	}
+	return &newCollection
+}
+
+// AndQuery 以 AND 语义组合多个查询条件。
+// 用 $and 而不是合并到同一个文档里，是因为同一字段可能出现多次，
+// 例如 Where("age").Gte(18).Where("age").Lte(65)。
+type AndQuery struct {
+	parts []impl.IBsonQuery
+}
+
+// GetBsonD 实现 IBsonQuery 接口
+func (a *AndQuery) GetBsonD() bson.D {
+	conditions := make(bson.A, 0, len(a.parts))
+	for _, part := range a.parts {
+		if part == nil {
+			continue
+		}
+		d := part.GetBsonD()
+		if len(d) == 0 {
+			continue
+		}
+		conditions = append(conditions, d)
+	}
+
+	switch len(conditions) {
+	case 0:
+		return bson.D{}
+	case 1:
+		return conditions[0].(bson.D)
+	default:
+		return bson.D{{Key: tmorm.AndOp, Value: conditions}}
+	}
 }
 func (c *Collection[T]) combineChain(handle tmorm.MiddlewareFunc) (res []tmorm.MiddlewareFunc) {
 	res = append(res, c.client.GetMiddleware()...)
@@ -189,7 +244,11 @@ func (c *Collection[T]) Count(ctx context.Context, opts ...*options.CountOptions
 
 	tmorm.Executor(mctx, c.combineChain(r))
 	res := mctx.Result
-	return res.Val.(int64), res.Err
+	// 中间件（如熔断器）可能短路，此时 Val 为 nil
+	if count, ok := res.Val.(int64); ok {
+		return count, res.Err
+	}
+	return 0, res.Err
 }
 
 // Set 设置字段值（用于更新）

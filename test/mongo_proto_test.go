@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -18,6 +19,13 @@ var MongoClient *mongo.Client
 func TestMongoPro(t *testing.T) {
 	ConnectMongo()
 	tq := &Tquery{}
+
+	// 与其它用例共用 db_test，测试结束后必须清理，否则会污染后续测试
+	t.Cleanup(func() {
+		_, err := MongoClient.Database("mytest").Collection("db_test").
+			DeleteMany(context.Background(), bson.D{})
+		assert.NoError(t, err)
+	})
 
 	type tcase struct {
 		name string

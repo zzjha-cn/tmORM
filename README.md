@@ -1,37 +1,564 @@
 <p align="right">
-   <strong>中文</strong> | <a href="./README_EN.md">English</a>
+   <strong>English</strong> | <a href="./README_CN.md">中文</a>
 </p>
 
 # tmORM
 
-tmORM是一个轻量级的MongoDB ORM框架，提供了简洁而强大的API来操作MongoDB数据库。支持链式调用、类型安全的查询构建器、更新操作和聚合表达式等特性。
+tmORM is a lightweight MongoDB ORM for Go. It gives you a type-safe, chainable query builder on top of the official
+`mongo-driver`, plus update builders, an aggregation pipeline builder, and a middleware chain for cross-cutting
+concerns such as logging, retries and circuit breaking.
 
-## 特性
+All examples in this README are compiled against the current API.
 
-- 类型安全的查询构建器
-- 支持复杂的查询条件（AND/OR/表达式）
-- 支持文档更新和替换操作
-- 支持数组操作（Push/Pull/AddToSet）
-- 支持聚合管道操作
-- 内置中间件机制，支持自定义中间件
-- 完整的查询表达式支持
+## Features
 
+- Type-safe, generic query builder (`Collection[T]`)
+- Composable query conditions: chained `Where`, expression trees, raw BSON
+- Update builder covering `$set` / `$inc` / `$mul` / array operators / `$rename` / `$currentDate`
+- Aggregation pipeline builder with typed results
+- Repository pattern with common CRUD helpers
+- Middleware chain with built-in logging, recovery, timing, retry, error-handling and circuit-breaker
+- Structured results with error classification (`MResult`)
+- Multi-client management and transaction helpers
 
-## 进度
-- [x] 完成query builder
-- [x] TDD测试驱动
-- [x] 完成query expr, and , or
-- [x] 完成query aggregate operator 聚合操作符
-- [x] 完成Middleware
-- [x] 简单完成Aggregater
-- [x] 完成端到端测试
-- [x] 查询的错误处理增强，支持错误分类与错误回调
-- [ ] 完成Agg stage阶段的各个常用命令封装（https://www.mongodb.com/zh-cn/docs/manual/reference/operator/aggregation/sort/）
-- [ ] 增加元数据管理中心
-- [ ] 增加原子化操作
-- [ ] 增加结果集处理封装
+## Requirements
 
-## 性能测试
+- Go 1.21+
+- MongoDB 4.2+ (transactions require a replica set)
+
+## Installation
+
+```bash
+go get github.com/zzjha-cn/tm_orm
+```
+
+## Quick Start
+
+### Connect
+
+```go
+import (
+    "time"
+
+    tmorm "github.com/zzjha-cn/tm_orm"
+)
+
+config := tmorm.DefaultClientConfig("mongodb://localhost:27017")
+config.MaxPoolSize = 100
+config.ConnectTimeout = 10 * time.Second
+
+ormClient, err := tmorm.NewORMClient(config)
+if err != nil {
+    panic(err)
+}
+defer ormClient.Close()
+```
+
+`NewORMClient` connects and pings eagerly, so a non-nil return value is already usable. Passing `nil` as the config
+falls back to `mongodb://localhost:27017`.
+
+### Define a model and query it
+
+```go
+import (
+    "github.com/zzjha-cn/tm_orm/collection"
+    "go.mongodb.org/mongo-driver/bson"
+    "go.mongodb.org/mongo-driver/bson/primitive"
+    "go.mongodb.org/mongo-driver/mongo/options"
+)
+
+type User struct {
+    ID    primitive.ObjectID `bson:"_id,omitempty"`
+    Name  string             `bson:"name"`
+    Age   int                `bson:"age"`
+    Email string             `bson:"email"`
+}
+
+coll := collection.NewCollection[User](ormClient, "mydb", "users")
+
+// Find many
+users, err := coll.Where("name").Eq("sean").Where("age").Gte(18).Find(ctx)
+
+// Find one
+user, err := coll.Where("_id").Eq(userID).FindOne(ctx)
+
+// Count
+count, err := coll.Where("age").Gte(18).Count(ctx)
+
+// Native driver options are passed straight through
+opts := options.Find().SetSort(bson.D{{Key: "age", Value: -1}}).SetLimit(10)
+users, err = coll.Where("age").Gte(18).Find(ctx, opts)
+```
+
+## Queries
+
+### Chained conditions
+
+Every `Where(...)` in a chain is combined with `$and`, so repeating the same field works as expected:
+
+```go
+users, err := coll.
+    Where("age").Gte(18).Where("age").Lte(65).
+    Where("name").Regex("^[A-Z]").
+    Where("email").Exists(true).
+    Find(ctx)
+```
+
+produces
+
+```js
+{ $and: [ { age: { $gte: 18 } }, { age: { $lte: 65 } },
+          { name: { $regex: "^[A-Z]" } }, { email: { $exists: true } } ] }
+```
+
+A `Collection` is immutable: each condition returns a new value, so a filtered collection can be safely reused as a
+base for several queries.
+
+Available on `Where(field)`: `Eq`, `Ne`, `Gt`, `Gte`, `Lt`, `Lte`, `In`, `NotIn`, `Regex`, `Exists`, and `Not()` to
+negate the next operator.
+
+```go
+// Membership
+users, err := coll.Where("city").In("Beijing", "Shanghai", "Guangzhou").Find(ctx)
+
+// Negation -> { status: { $not: { $eq: "active" } } }
+users, err = coll.Where("status").Not().Eq("active").Find(ctx)
+```
+
+### Raw BSON filters
+
+`Filter` and `AndFilter` accept anything implementing `impl.IBsonQuery`, which is a single method:
+
+```go
+import "github.com/zzjha-cn/tm_orm/impl"
+
+type RawQuery struct {
+    Data bson.D
+}
+
+func (q *RawQuery) GetBsonD() bson.D { return q.Data }
+
+query := &RawQuery{Data: bson.D{
+    {Key: "$or", Value: bson.A{
+        bson.D{{Key: "name", Value: "sean"}},
+        bson.D{{Key: "email", Value: bson.M{"$regex": "@example.com$"}}},
+    }},
+}}
+
+// Filter REPLACES any conditions set so far
+users, err := coll.Filter(query).Find(ctx)
+
+// AndFilter APPENDS to them with $and
+users, err = coll.Where("age").Gte(18).AndFilter(query).Find(ctx)
+```
+
+### Expressions
+
+`Expr(field)` exposes a richer operator set than `Where`, including string, range, array and date helpers:
+
+```go
+users, err := coll.Expr("age").Between(18, 65).Find(ctx)
+users, err = coll.Expr("email").Contains("@company.com").Find(ctx)
+users, err = coll.Expr("created_at").LastNDays(7).Find(ctx)
+users, err = coll.Expr("tags").All("golang", "backend").Find(ctx)
+
+// Each Expr(...) terminal returns a Collection, so they chain with $and
+users, err = coll.Expr("age").Gt(25).Expr("status").Eq("active").Find(ctx)
+```
+
+`Expr(field)` supports `Eq`, `Ne`, `Gt`, `Gte`, `Lt`, `Lte`, `In`, `NotIn`, `Exists`, `Regex`, `Contains`,
+`StartsWith`, `EndsWith`, `Between`, `IsNull`, `IsNotNull`, `Size`, `All`, `ElemMatch`, and the date shortcuts
+`Today`, `Yesterday`, `ThisWeek`, `ThisMonth`, `LastNDays`.
+
+For boolean logic, build expressions with the `expression` package and combine them with `And` / `Or` / `Nor` / `Not`:
+
+```go
+import "github.com/zzjha-cn/tm_orm/expression"
+
+expr1 := expression.NewExpression().Field("name").Eq("sean")
+expr2 := expression.NewExpression().Field("age").Gt(25)
+
+users, err := coll.WhereExpr(expression.Or(expr1, expr2)).Find(ctx)
+users, err = coll.WhereExpr(expression.And(expr1, expr2)).Find(ctx)
+users, err = coll.WhereExpr(expression.Not(expr1)).Find(ctx)
+
+// expression.Q is a shorthand for NewExpression().Field(...)
+nested := expression.And(
+    expression.Or(
+        expression.Q("department").Eq("Engineering"),
+        expression.Q("department").Eq("IT"),
+    ),
+    expression.Q("age").Between(25, 45),
+)
+users, err = coll.WhereExpr(nested).Find(ctx)
+```
+
+> **Note:** a single `Expression` carries one logical operator. Calling `.And()` / `.Or()` on it switches that
+> operator for *all* conditions it holds — it does not mix them. To combine AND and OR, nest `expression.And(...)`
+> and `expression.Or(...)` as shown above. `WhereExpr` itself appends with `$and`, so it also composes with `Where`.
+
+## Updates
+
+```go
+// Single field
+res, err := coll.Where("_id").Eq(userID).Set("age", 25).UpdateOne(ctx)
+
+// Multiple fields, all matching documents
+res, err = coll.Where("name").Eq("sean").
+    Set("age", 26).
+    Set("email", "sean@example.com").
+    Update(ctx)
+
+// Numeric operators
+res, err = coll.Where("_id").Eq(userID).
+    Inc("age", 1).
+    Mul("salary", 1.1).
+    UpdateOne(ctx)
+
+// Field removal / rename / timestamps
+res, err = coll.Where("_id").Eq(userID).
+    Unset("deprecated_field").
+    Rename("old_field", "new_field").
+    CurrentDate("updated_at").
+    UpdateOne(ctx)
+
+// Upsert
+res, err = coll.Where("name").Eq("sean").
+    Set("age", 30).
+    SetOnInsert("created_at", time.Now()).
+    UpdateOne(ctx, options.Update().SetUpsert(true))
+```
+
+`Collection` starts an update chain via `Set`, `Inc` or `Unset`. Every other operator — including the array ones —
+lives on `UpdateBuilder`, so start from one of those three or construct the builder explicitly:
+
+```go
+res, err := collection.NewUpdateBuilder(coll.Where("_id").Eq(userID)).
+    Push("tags", "new-tag").
+    Pull("old_tags", "deprecated-tag").
+    AddToSet("skills", "golang").
+    UpdateOne(ctx)
+```
+
+`UpdateOne` maps to `UpdateOne`, `Update` maps to `UpdateMany`.
+
+> **Careful:** `Update` and `Delete` without any condition match the entire collection. Always set a filter unless
+> that is really what you want.
+
+## Insert and Delete
+
+```go
+user := &User{Name: "sean", Age: 25, Email: "sean@example.com"}
+one, err := coll.Insert(ctx, user)
+
+users := []*User{
+    {Name: "alice", Age: 23, Email: "alice@example.com"},
+    {Name: "bob", Age: 27, Email: "bob@example.com"},
+}
+many, err := coll.InsertMany(ctx, users)
+
+del, err := coll.Where("_id").Eq(user.ID).DeleteOne(ctx)
+del, err = coll.Where("age").Lt(18).Delete(ctx) // DeleteMany
+```
+
+## Repository
+
+```go
+import "github.com/zzjha-cn/tm_orm/repo"
+
+r := repo.NewRepository[User](ormClient, "mydb", "users")
+
+created, err := r.Create(ctx, &User{Name: "sean", Age: 25})   // *mongo.InsertOneResult
+id := created.InsertedID
+
+found, err := r.FindByID(ctx, id)                             // *User
+updateRes, err := r.UpdateByID(ctx, id, map[string]any{       // *mongo.UpdateResult
+    "age":   26,
+    "email": "newemail@example.com",
+})
+deleteRes, err := r.DeleteByID(ctx, id)                       // *mongo.DeleteResult
+
+list, total, err := r.FindPage(ctx, 1, 10)                    // page 1, 10 per page
+exists, err := r.Exists(ctx, id)
+count, err := r.Count(ctx)
+```
+
+`BaseRepository` adds field-oriented helpers on top:
+
+```go
+br := repo.NewBaseRepository[User](ormClient, "mydb", "users")
+
+byField, err := br.FindByField(ctx, "name", "sean")
+one, err := br.FindOneByField(ctx, "email", "sean@example.com")
+in, err := br.FindIn(ctx, "city", "Beijing", "Shanghai")
+n, err := br.CountByField(ctx, "status", "active")
+```
+
+Note that `FindPage` counts the whole collection, not the filtered subset.
+
+## Aggregation
+
+`Aggregator[T]` decodes results into `T`, so parameterise it with the *shape of the output*, not the source
+document:
+
+```go
+import "github.com/zzjha-cn/tm_orm/aggregator"
+
+type DeptStat struct {
+    Department string  `bson:"_id"`
+    AvgAge     float64 `bson:"avgAge"`
+    Count      int64   `bson:"count"`
+}
+
+agg := aggregator.NewAggregator[DeptStat](ormClient, "mydb", "users")
+
+stats, err := agg.
+    Match(bson.M{"age": bson.M{"$gte": 18}}).
+    Group("$department", bson.M{
+        "avgAge": bson.M{"$avg": "$age"},
+        "count":  bson.M{"$sum": 1},
+    }).
+    SortDesc("avgAge").
+    Execute(ctx)
+```
+
+`$match` can also be built from an expression:
+
+```go
+stats, err := agg.
+    MatchByExpression(expression.Q("status").Eq("active")).
+    Group("$department", bson.M{"count": bson.M{"$sum": 1}}).
+    Execute(ctx)
+```
+
+### Joins
+
+```go
+type OrderResult struct {
+    ID        primitive.ObjectID `bson:"_id"`
+    Amount    float64            `bson:"amount"`
+    UserName  string             `bson:"user_name"`
+    UserEmail string             `bson:"user_email"`
+}
+
+orderAgg := aggregator.NewAggregator[OrderResult](ormClient, "mydb", "orders")
+
+orders, err := orderAgg.
+    Match(bson.M{"status": "completed"}).
+    Lookup("users", "user_id", "_id", "user_info").
+    Unwind("user_info").                 // the leading "$" is added for you
+    Project(bson.M{
+        "_id":        1,
+        "amount":     1,
+        "user_name":  "$user_info.name",
+        "user_email": "$user_info.email",
+    }).
+    Execute(ctx)
+
+// Keep documents whose array is empty or missing
+orders, err = orderAgg.Unwind("user_info", true).Execute(ctx)
+```
+
+### Other stages
+
+```go
+// Facet
+facet, err := aggregator.NewAggregator[bson.M](ormClient, "mydb", "users").
+    Match(bson.M{"status": "active"}).
+    Facet(bson.M{
+        "ageStats": []bson.M{
+            {"$group": bson.M{"_id": nil, "avgAge": bson.M{"$avg": "$age"}}},
+        },
+        "departmentCount": []bson.M{
+            {"$group": bson.M{"_id": "$department", "count": bson.M{"$sum": 1}}},
+            {"$sort": bson.M{"count": -1}},
+        },
+    }).
+    Execute(ctx)
+
+// Pagination: Paginate only appends $skip/$limit, you still call Execute
+page, err := aggregator.NewAggregator[bson.M](ormClient, "mydb", "users").
+    Match(bson.M{"age": bson.M{"$gte": 18}}).
+    SortAsc("name").
+    Paginate(1, 10).
+    Execute(ctx)
+
+// $replaceRoot takes { newRoot: <expr> }; $replaceWith takes the expression directly
+rooted, err := aggregator.NewAggregator[bson.M](ormClient, "mydb", "orders").
+    Unwind("items").
+    ReplaceRoot("$items").
+    Execute(ctx)
+
+withed, err := aggregator.NewAggregator[bson.M](ormClient, "mydb", "orders").
+    ReplaceWith("$items").
+    Execute(ctx)
+```
+
+`ExecuteOne` returns the first document (`mongo.ErrNoDocuments` when empty) and `ExecuteRaw` hands back the native
+cursor:
+
+```go
+single, err := agg.Match(bson.M{"name": "sean"}).ExecuteOne(ctx)
+
+cursor, err := agg.Match(bson.M{"name": "sean"}).ExecuteRaw(ctx)
+if err == nil {
+    defer cursor.Close(ctx)
+}
+```
+
+> **Note:** unlike `Collection`, an `Aggregator` is mutable — every stage is appended to the same pipeline. Create a
+> new aggregator per query rather than reusing one, and be aware that `ExecuteOne` appends a `$limit` stage that
+> stays in the pipeline.
+
+## Middleware
+
+A middleware is a function that receives the operation context and the rest of the chain. Client-level middleware
+runs first, then collection-level middleware, then the actual database call.
+
+```go
+loggingMiddleware := func(mctx *tmorm.MiddleCtx, next func(m *tmorm.MiddleCtx)) {
+    start := time.Now()
+    fmt.Printf("start: %s %s.%s\n", mctx.Typ, mctx.DBName, mctx.CollectionName)
+
+    next(mctx)
+
+    if mctx.Result.Err != nil {
+        fmt.Printf("failed after %v: %v\n", time.Since(start), mctx.Result.Err)
+        return
+    }
+    fmt.Printf("done in %v\n", time.Since(start))
+}
+
+// Client level: applies to every operation on this client
+ormClient.Use(
+    tmorm.Recovery(),
+    tmorm.LoggingMiddleware(log.Default()),
+    tmorm.TimingMiddleware(100*time.Millisecond),
+    tmorm.RetryMiddleware(3, 200*time.Millisecond),
+    tmorm.CircuitBreakerMiddleware(5, 30*time.Second),
+)
+
+// Collection level: applies to this collection only
+coll := collection.NewCollection[User](ormClient, "mydb", "users", loggingMiddleware)
+```
+
+Built-ins:
+
+| Middleware | Purpose |
+| --- | --- |
+| `Recovery()` | Recovers panics into a fatal `MResult` with a stack trace |
+| `LoggingMiddleware(logger)` | Logs operation, filter, duration and error details |
+| `TimingMiddleware(threshold)` | Flags slow operations as a warning |
+| `RetryMiddleware(max, delay)` | Retries retryable errors (network / timeout) |
+| `ErrorHandlingMiddleware(cb)` | Invokes a callback with the classified error |
+| `CircuitBreakerMiddleware(n, reset)` | Opens after `n` consecutive failures |
+
+Inside a middleware, `mctx.Operation` is the filter, `mctx.UpdateOp` the update document, `mctx.AggOp` the pipeline,
+and `mctx.Result` the outcome.
+
+### Errors
+
+Every operation fills an `MResult`. Errors are classified automatically into a type, a code and a retryable flag:
+
+```go
+callback := func(result *tmorm.MResult, mctx *tmorm.MiddleCtx) {
+    fmt.Printf("operation=%s type=%s code=%s retryable=%v err=%v\n",
+        mctx.Typ, result.ErrorType, result.Code, result.Retryable, result.Err)
+
+    if result.Level == tmorm.ErrorLevelFatal {
+        fmt.Println("fatal:", result.GetErrorInfo())
+    }
+}
+
+ormClient.Use(tmorm.ErrorHandlingMiddleware(callback))
+```
+
+Error types: `CONNECTION`, `TIMEOUT`, `VALIDATION`, `QUERY`, `UPDATE`, `INSERT`, `DELETE`, `AGGREGATE`, `AUTH`,
+`INDEX`, `UNKNOWN`. Levels: `INFO`, `WARNING`, `ERROR`, `FATAL`.
+
+## Transactions
+
+Transactions require a replica set or a sharded cluster. Pass the session context to every operation inside:
+
+```go
+err := ormClient.Transaction(ctx, func(sc mongo.SessionContext) error {
+    coll := collection.NewCollection[User](ormClient, "mydb", "users")
+
+    if _, err := coll.Insert(sc, &User{Name: "sean", Age: 25}); err != nil {
+        return err
+    }
+
+    _, err := coll.Where("name").Eq("alice").Inc("age", 1).UpdateOne(sc)
+    return err
+})
+```
+
+## Multiple clients
+
+```go
+manager := tmorm.NewClientManager()
+defer manager.Close()
+
+_ = manager.AddClient("primary", tmorm.DefaultClientConfig("mongodb://localhost:27017"))
+_ = manager.AddClient("analytics", tmorm.DefaultClientConfig("mongodb://localhost:27018"))
+_ = manager.SetDefaultClient("primary")
+
+primary, err := manager.GetClient("primary")
+
+for name, err := range manager.HealthCheck(ctx) {
+    fmt.Println(name, err)
+}
+```
+
+A process-wide manager is also available via `tmorm.GlobalManager()`, `tmorm.AddGlobalClient(...)` and
+`tmorm.GetGlobalClient(...)`.
+
+## Supported operators
+
+- Comparison: `$eq`, `$gt`, `$gte`, `$lt`, `$lte`, `$ne`, `$in`, `$nin`
+- Logical: `$and`, `$or`, `$not`, `$nor`
+- Element: `$exists`, `$type`
+- Evaluation: `$expr`, `$regex`, `$mod`, `$text`
+- Array: `$all`, `$elemMatch`, `$size`
+- Update: `$set`, `$unset`, `$inc`, `$mul`, `$rename`, `$setOnInsert`, `$currentDate`, `$push`, `$pop`, `$pull`,
+  `$pullAll`, `$addToSet`
+- Aggregation stages: `$match`, `$group`, `$sort`, `$project`, `$limit`, `$skip`, `$unwind`, `$lookup`,
+  `$graphLookup`, `$addFields`, `$replaceRoot`, `$replaceWith`, `$facet`, `$bucket`, `$sample`, `$out`, `$merge`,
+  `$redact`, `$geoNear`, `$count`
+
+See [docs/support_exprssion.md](docs/support_exprssion.md) for the full list.
+
+## Caveats
+
+Things worth knowing before you hit them:
+
+- A single `Expression` holds one logical operator; mix AND and OR by nesting `expression.And` / `expression.Or`
+  rather than chaining `.And()` / `.Or()` on the same expression.
+- `Aggregator` mutates its pipeline in place — use a fresh one per query.
+- `Aggregator.PaginateWithCount` is not implemented yet; use `Paginate` plus a separate count.
+- `GroupBuilder` and the `MatchOperators` / `ProjectOperators` / `SortOperators` helpers `Build()` into
+  `Aggregator[any]`, which loses the result type. Prefer `Group(id, fields)` and `Match(filter)` for typed results.
+- `Update` and `Delete` with no filter affect the whole collection.
+- `Repository.FindPage` returns the total for the entire collection, not for the filter.
+- Middleware cannot currently override the `context.Context` used by the driver call.
+
+## Roadmap
+
+- [x] Query builder
+- [x] TDD test suite
+- [x] Query expressions, AND / OR
+- [x] Aggregation operators
+- [x] Middleware
+- [x] Aggregator (basic)
+- [x] End-to-end tests
+- [x] Error classification and error callbacks
+- [ ] Full coverage of aggregation stage helpers
+- [ ] Metadata management
+- [ ] Atomic operation helpers
+- [ ] Result-set processing helpers
+
+## Benchmarks
+
 ```
 goos: darwin
 goarch: arm64
@@ -123,398 +650,6 @@ BenchmarkAggregate/Native-ComplexAggregate
 BenchmarkAggregate/Native-ComplexAggregate-8                	      21	  52452042 ns/op	   21222 B/op	     439 allocs/op
 ```
 
-## 安装
+## License
 
-```bash
-go get github.com/zzjha-cn/tmORM
-```
-
-## 快速开始
-### 连接数据库
-```go
-import (
-    "context"
-    tmorm "github.com/zzjha-cn/tm_orm"
-    "github.com/zzjha-cn/tm_orm/collection"
-    "go.mongodb.org/mongo-driver/mongo"
-    "go.mongodb.org/mongo-driver/mongo/options"
-)
-
-// 创建 MongoDB 客户端
-client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI("mongodb://localhost:27017"))
-if err != nil {
-    panic(err)
-}
-
-// 创建 ORM 客户端
-config := tmorm.DefaultClientConfig("mongodb://localhost:27017")
-ormClient, err := tmorm.NewORMClient(config)
-if err != nil {
-    panic(err)
-}
-```
-### 基本查询
-
-```go
-import (
-    "github.com/zzjha-cn/tm_orm/collection"
-    "go.mongodb.org/mongo-driver/bson/primitive"
-)
-
-// 定义模型
-type User struct {
-    ID   primitive.ObjectID `bson:"_id,omitempty"`
-    Name string            `bson:"name"`
-    Age  int               `bson:"age"`
-    Email string           `bson:"email"`
-}
-
-// 创建集合操作器
-coll := collection.NewCollection[User](ormClient, "mydb", "users")
-
-// 基本查询
-users, err := coll.Where("name").Eq("sean").Where("age").Gte(18).Find(ctx)
-if err != nil {
-    panic(err)
-}
-
-// 查询单个文档
-user, err := coll.Where("_id").Eq(userID).FindOne(ctx)
-if err != nil {
-    panic(err)
-}
-
-// 统计文档数量
-count, err := coll.Where("age").Gte(18).Count(ctx)
-```
-
-### 复杂查询
-
-#### 多条件查询
-```go
-// 链式条件查询
-users, err := coll.
-    Where("age").Gte(18).Where("age").Lte(65).
-    Where("name").Regex("^[A-Z]").
-    Where("email").Exists(true).
-    Find(ctx)
-
-// 使用 In 操作符
-users, err := coll.Where("city").In("Beijing", "Shanghai", "Guangzhou").Find(ctx)
-
-// 使用 Filter 进行复杂条件
-import "go.mongodb.org/mongo-driver/bson"
-
-filter := bson.M{
-    "$and": []bson.M{
-        {"age": bson.M{"$gte": 18}},
-        {"$or": []bson.M{
-            {"name": "sean"},
-            {"email": bson.M{"$regex": "@example.com$"}},
-        }},
-    },
-}
-users, err := coll.Filter(filter).Find(ctx)
-```
-
-#### 表达式查询
-```go
-import "github.com/zzjha-cn/tm_orm/expression"
-
-// 使用表达式构建复杂查询
-expr := expression.NewExpression().Field("name").Eq("sean").
-    Or().Field("age").Gt(25).And().Field("email").Regex("@company.com$")
-
-users, err := coll.WhereExpr(expr).Find(ctx)
-
-// 或者使用组合表达式
-expr1 := expression.NewExpression().Field("name").Eq("sean")
-expr2 := expression.NewExpression().Field("age").Gt(25)
-combinedExpr := expression.Or(expr1, expr2)
-
-users, err := coll.WhereExpr(combinedExpr).Find(ctx)
-
-// 使用链式表达式构建器
-users, err := coll.Expr("age").Gt(25).And("status").Eq("active").Find(ctx)
-```
-
-### 更新操作
-
-```go
-// 单字段更新
-result, err := coll.Where("_id").Eq(userID).Set("age", 25).UpdateOne(ctx)
-if err != nil {
-    panic(err)
-}
-
-// 多字段更新
-result, err := coll.Where("name").Eq("sean").
-    Set("age", 26).
-    Set("email", "sean@example.com").
-    Update(ctx)
-
-// 数值操作
-result, err := coll.Where("_id").Eq(userID).
-    Inc("age", 1).        // 年龄加1
-    Mul("salary", 1.1).   // 薪资乘以1.1
-    UpdateOne(ctx)
-
-// 数组操作
-result, err := coll.Where("_id").Eq(userID).
-    Push("tags", "new-tag").              // 添加到数组
-    Pull("old_tags", "deprecated-tag").   // 从数组移除
-    AddToSet("skills", "golang").         // 添加到集合（去重）
-    UpdateOne(ctx)
-
-// 字段重命名和删除
-result, err := coll.Where("_id").Eq(userID).
-    Rename("old_field", "new_field").     // 重命名字段
-    Unset("deprecated_field").            // 删除字段
-    UpdateOne(ctx)
-
-// 使用 UpdateBuilder 进行复杂更新
-import "github.com/zzjha-cn/tm_orm/collection"
-
-builder := collection.NewUpdateBuilder().
-    Set("name", "new name").
-    Inc("age", 1).
-    Push("tags", "tag1")
-
-result, err := coll.Where("_id").Eq(userID).UpdateWithBuilder(ctx, builder)
-```
-
-### 插入操作
-
-```go
-// 插入单个文档
-user := &User{
-    Name:  "sean",
-    Age:   25,
-    Email: "sean@example.com",
-}
-result, err := coll.Insert(ctx, user)
-if err != nil {
-    panic(err)
-}
-
-// 批量插入
-users := []*User{
-    {Name: "alice", Age: 23, Email: "alice@example.com"},
-    {Name: "bob", Age: 27, Email: "bob@example.com"},
-}
-result, err := coll.InsertMany(ctx, users)
-```
-
-### 删除操作
-
-```go
-// 删除单个文档
-result, err := coll.Where("_id").Eq(userID).DeleteOne(ctx)
-
-// 批量删除
-result, err := coll.Where("age").Lt(18).Delete(ctx)
-```
-
-### Repository 模式
-
-```go
-import "github.com/zzjha-cn/tm_orm/repo"
-
-// 创建 Repository
-repo := repo.NewRepository[User](ormClient, "mydb", "users")
-
-// 基本 CRUD 操作
-user := &User{Name: "sean", Age: 25, Email: "sean@example.com"}
-
-// 创建
-createdUser, err := repo.Create(ctx, user)
-
-// 根据 ID 查找
-foundUser, err := repo.FindByID(ctx, createdUser.ID)
-
-// 根据 ID 更新
-updates := map[string]any{"age": 26, "email": "newemail@example.com"}
-updatedUser, err := repo.UpdateByID(ctx, createdUser.ID, updates)
-
-// 根据 ID 删除
-err = repo.DeleteByID(ctx, createdUser.ID)
-
-// 分页查询
-users, total, err := repo.FindPage(ctx, 1, 10) // 第1页，每页10条
-
-// 检查是否存在
-exists, err := repo.Exists(ctx, createdUser.ID)
-
-// 统计数量
-count, err := repo.Count(ctx)
-```
-
-### 聚合操作
-
-```go
-import "github.com/zzjha-cn/tm_orm/aggregator"
-
-// 创建聚合器
-agg := aggregator.NewAggregator[User](ormClient, "mydb", "users")
-
-// 基本聚合操作
-results, err := agg.
-    Match(bson.M{"age": bson.M{"$gte": 18}}).
-    Group("$department", bson.M{
-        "avgAge": bson.M{"$avg": "$age"},
-        "count": bson.M{"$sum": 1},
-    }).
-    SortDesc("avgAge").
-    Execute(ctx)
-
-if err != nil {
-    panic(err)
-}
-
-// 使用聚合操作符
-results, err := agg.
-    Match(bson.M{"status": "active"}).
-    Project(bson.M{
-        "name": 1,
-        "age": 1,
-        "ageGroup": bson.M{
-            "$cond": bson.M{
-                "if":   bson.M{"$lt": []any{"$age", 30}},
-                "then": "young",
-                "else": "senior",
-            },
-        },
-    }).
-    Execute(ctx)
-
-// 关联查询 (Lookup)
-type OrderResult struct {
-    ID       primitive.ObjectID `bson:"_id"`
-    Amount   float64           `bson:"amount"`
-    UserInfo User              `bson:"user_info"`
-}
-
-orderAgg := aggregator.NewAggregator[OrderResult](ormClient, "mydb", "orders")
-orders, err := orderAgg.
-    Match(bson.M{"status": "completed"}).
-    Lookup("users", "user_id", "_id", "user_info").
-    Unwind("$user_info").
-    Project(bson.M{
-        "_id": 1,
-        "amount": 1,
-        "user_name": "$user_info.name",
-        "user_email": "$user_info.email",
-    }).
-    Execute(ctx)
-```
-### 复杂聚合
-```go
-// 多级分组和条件聚合
-results, err := agg.
-    Match(bson.M{"age": bson.M{"$gte": 20}}).
-    Group(bson.M{
-        "department": "$department",
-        "ageRange": bson.M{
-            "$cond": bson.M{
-                "if":   bson.M{"$lte": []any{"$age", 25}},
-                "then": "young",
-                "else": "senior",
-            },
-        },
-    }, bson.M{
-        "avgAge": bson.M{"$avg": "$age"},
-        "names":  bson.M{"$push": "$name"},
-        "count":  bson.M{"$sum": 1},
-    }).
-    SortDesc("avgAge").
-    Execute(ctx)
-
-// 分面聚合 (Facet)
-facetResults, err := agg.
-    Match(bson.M{"status": "active"}).
-    Facet(bson.M{
-        "ageStats": []bson.M{
-            {"$group": bson.M{
-                "_id": nil,
-                "avgAge": bson.M{"$avg": "$age"},
-                "minAge": bson.M{"$min": "$age"},
-                "maxAge": bson.M{"$max": "$age"},
-            }},
-        },
-        "departmentCount": []bson.M{
-            {"$group": bson.M{
-                "_id": "$department",
-                "count": bson.M{"$sum": 1},
-            }},
-            {"$sort": bson.M{"count": -1}},
-        },
-    }).
-    Execute(ctx)
-
-// 分页聚合
-page := int64(1)
-pageSize := int64(10)
-results, total, err := agg.
-    Match(bson.M{"age": bson.M{"$gte": 18}}).
-    SortAsc("name").
-    Paginate(ctx, page, pageSize)
-```
-
-### 中间件使用
-
-```go
-import (
-    "context"
-    "fmt"
-    "time"
-    tmorm "github.com/zzjha-cn/tm_orm"
-    "github.com/zzjha-cn/tm_orm/collection"
-)
-
-// 创建自定义中间件
-loggingMiddleware := func(mctx *tmorm.MiddleCtx, next func(m *tmorm.MiddleCtx)) {
-    start := time.Now()
-    fmt.Printf("[%s] Starting operation: %s\n", start.Format(time.RFC3339), mctx.Typ)
-
-    next(mctx)
-
-    duration := time.Since(start)
-    if mctx.Result.Err != nil {
-        fmt.Printf("[%s] Operation %s failed after %v: %v\n",
-            time.Now().Format(time.RFC3339), mctx.Typ, duration, mctx.Result.Err)
-    } else {
-        fmt.Printf("[%s] Operation %s completed in %v\n",
-            time.Now().Format(time.RFC3339), mctx.Typ, duration)
-    }
-}
-
-// 创建带中间件的 ORM 客户端
-config := tmorm.DefaultClientConfig()
-config.URI = "mongodb://localhost:27017"
-ormClient, err := tmorm.NewORMClient(config)
-if err != nil {
-    panic(err)
-}
-
-// 为collection创建中间件
-coll := collection.NewCollection[User](ormClient, "mydb", "users", loggingMiddleware)
-
-// 所有通过此客户端的操作都会经过中间件处理
-users, err := coll.Where("age").Gte(18).Find(ctx) // 会触发中间件
-```
-
-## 支持的查询操作符
-
-框架支持丰富的MongoDB查询操作符，包括：
-
-- 比较操作符：`$eq`, `$gt`, `$gte`, `$lt`, `$lte`, `$ne`, `$in`, `$nin`
-- 逻辑操作符：`$and`, `$or`
-- 元素操作符：`$exists`, `$type`
-- 评估操作符：`$expr`, `$regex`, `$mod`
-- 数组操作符：`$all`, `$elemMatch`, `$size`
-
-更多操作符支持详见[文档](docs/support_exprssion.md)。
-
-## 许可证
-
-本项目采用MIT许可证。详见[LICENSE](LICENSE)文件。
+MIT. See [LICENSE](LICENSE).

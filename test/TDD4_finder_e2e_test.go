@@ -395,7 +395,7 @@ func TestAdvancedQueries(t *testing.T) {
 			},
 			validate: func(result any) bool {
 				users := result.([]*TestUser2)
-				return len(users) == 2 // Bob (HR), Alice (age < 30)
+				return len(users) == 3 // Bob (HR), Alice (26), John (28)
 			},
 		},
 		{

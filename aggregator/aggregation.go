@@ -175,9 +175,14 @@ func (a *Aggregator[T]) AddFields(fields bson.M) *Aggregator[T] {
 	return a.AddStage(bson.M{tmorm.AddFieldsOp: fields})
 }
 
-// ReplaceRoot 替换根文档
+// ReplaceRoot 替换根文档，对应 $replaceRoot
 func (a *Aggregator[T]) ReplaceRoot(newRoot any) *Aggregator[T] {
-	return a.AddStage(bson.M{tmorm.ReplaceWithOp: bson.M{"newRoot": newRoot}})
+	return a.AddStage(bson.M{tmorm.ReplaceRootOp: bson.M{"newRoot": newRoot}})
+}
+
+// ReplaceWith 替换根文档，对应 $replaceWith，直接接受表达式
+func (a *Aggregator[T]) ReplaceWith(expr any) *Aggregator[T] {
+	return a.AddStage(bson.M{tmorm.ReplaceWithOp: expr})
 }
 
 // Facet 多面搜索

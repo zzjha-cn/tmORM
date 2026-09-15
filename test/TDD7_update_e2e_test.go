@@ -19,6 +19,12 @@ func TestUpdaterE2E(t *testing.T) {
 	ormClient, _ := tmorm.NewORMClient(nil)
 	coll := collection.NewCollection[TestUser](ormClient, "mytest", "db_test")
 
+	// 与其它用例共用同一个集合，测试结束后必须清理，否则会污染后续测试
+	t.Cleanup(func() {
+		_, err := coll.Where("_id").Ne("").Delete(ctx)
+		assert.NoError(t, err)
+	})
+
 	type tcase struct {
 		name   string
 		data   any

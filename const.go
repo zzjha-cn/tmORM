@@ -79,6 +79,7 @@ const (
 	SkipOp                = "$skip"
 	UnwindOp              = "$unwind"
 	ReplaceWithOp         = "$replaceWith"
+	ReplaceRootOp         = "$replaceRoot"
 	ArrayToObjectOp       = "$arrayToObject"
 	ReverseArrayOp        = "$reverseArray"
 	FacetOp               = "$facet"
